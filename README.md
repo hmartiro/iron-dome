@@ -1,4 +1,10 @@
 iron-dome
 =========
 
-A mobile robotic wiffle ball defense system
+A robotic projectile defense system with style. A project for Experimental Robotics (CS225A) at Stanford.
+
+Authors:
+
+ * Hayk Martirosyan
+ * Daniel O'Shea
+ * Wanxi Liu
