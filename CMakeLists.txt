@@ -45,10 +45,10 @@ SET(CMAKE_CXX_FLAGS_DEBUG "-ggdb -O0 -pg -std=c++0x -DGRAPHICS_ON -DASSERT=asser
 SET(CMAKE_CXX_FLAGS_RELEASE "-O3 -std=c++0x -DGRAPHICS_ON -DW_THREADING_ON -DNDEBUG")
 
 #Set all the sources required for the library
-SET(TUTE3_BASE_DIR .)
+SET(IRON_DOME_SRC_DIR ./src)
 
 #These are the source files that will be compiled.
-SET(ALL_SRC ${TUTE3_BASE_DIR}/iron_dome.cpp
+SET(ALL_SRC ${IRON_DOME_SRC_DIR}/iron_dome.cpp
             ${SCL_INC_DIR}/graphics/chai/CGraphicsChai.cpp 
             ${SCL_INC_DIR}/graphics/chai/ChaiGlutHandlers.cpp)
 
