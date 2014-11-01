@@ -1,0 +1,135 @@
+<?xml version="1.0" ?>
+<!DOCTYPE LOTUS SYSTEM "scl.dtd">
+
+<scl>
+  <robot spec_name="Puma">
+  <!-- Contains all the links in a flat file (ie no link nesting). The robot is constructed by
+       the parser by finding each link's parent and attaching the link as a child. -->
+	<link>
+		<link_name>base</link_name> <!--unique link name -->
+		<position_in_parent>0.000000 0.000000 0.660000</position_in_parent> <!--xyz in parent frame -->
+		<orientation_in_parent>0 0 0 1</orientation_in_parent> <!-- xyz w quaternion in parent frame -->
+		<mass>34.400000</mass> <!-- Of the link, in kgs. -->
+		<inertia>0.000000 0.000000 1.490000</inertia> <!-- Ixx Iyy Izz at the center of mass -->
+		<center_of_mass>0.000000 0.000000 0.000000</center_of_mass> <!-- xyz -->
+		<joint_name>shoulder-yaw</joint_name> <!-- unique joint name. -->
+		<parent_link_name>ground</parent_link_name> <!-- The parent link. Ground is fixed. -->
+		<joint_type>rz</joint_type> <!-- The type of joint. (p)rismatic/(r)evolute + x/y/z (axis) -->
+		<joint_limits>-3.141590 3.141590</joint_limits> <!-- Minimum and maximum joint coordinate values -->
+		<default_joint_position>0.000000</default_joint_position> <!-- Initial configuration -->
+		<graphics> <!-- Can contain more than one obj file -->
+			<obj_file>
+				<name>Puma/graphics/shoulder_bl.obj</name> <!-- obj file format is best. 3ds is possible -->
+				<position_in_parent>0.000000 0.000000 0.000000</position_in_parent>
+				<orientation_in_parent>0.000000 0.000000 0.000000 1.000000</orientation_in_parent>
+				<collision_type>0</collision_type> <!-- 0 = no collision, 1 = convex hull collision, 2 = polygon collision. -->
+			</obj_file>
+		</graphics>
+	</link>
+	<link>
+		<link_name>upper_arm</link_name>
+		<position_in_parent>0.000000 0.243500 0.000000</position_in_parent>
+		<orientation_in_parent>-0.7071 -0 -0 0.7071</orientation_in_parent>
+		<mass>17.400000</mass>
+		<inertia>0.130000 0.524000 5.249000</inertia>
+		<center_of_mass>0.068000 0.006000 -0.016000</center_of_mass>
+		<joint_name>shoulder-pitch</joint_name>
+		<parent_link_name>base</parent_link_name>
+		<joint_type>rz</joint_type>
+		<joint_limits>-3.141590 3.141590</joint_limits>
+		<default_joint_position>0.000000</default_joint_position>
+		<graphics>
+			<obj_file>
+				<name>Puma/graphics/upper_arm_bl.obj</name>
+				<position_in_parent>0.000000 0.000000 0.000000</position_in_parent>
+				<orientation_in_parent>0.000000 0.000000 0.000000 1.000000</orientation_in_parent>
+				<collision_type>0</collision_type>
+			</obj_file>
+		</graphics>
+	</link>
+	<link>
+		<link_name>lower_arm</link_name>
+		<position_in_parent>0.431800 0.000000 -0.093400</position_in_parent>
+		<orientation_in_parent>0 0 0 1</orientation_in_parent>
+		<mass>6.040000</mass>
+		<inertia>0.192000 0.015400 1.042000</inertia>
+		<center_of_mass>0.000000 -0.143000 0.014000</center_of_mass>
+		<joint_name>elbow</joint_name>
+		<parent_link_name>upper_arm</parent_link_name>
+		<joint_type>rz</joint_type>
+		<joint_limits>-3.141590 3.141590</joint_limits>
+		<default_joint_position>0.000000</default_joint_position>
+		<graphics>
+			<obj_file>
+				<name>Puma/graphics/lower_arm_bl.obj</name>
+				<position_in_parent>-0.0200000 0.000000 -0.005000</position_in_parent>
+				<orientation_in_parent>0.000000 0.000000 0.000000 1.000000</orientation_in_parent>
+				<collision_type>0</collision_type>
+			</obj_file>
+		</graphics>
+	</link>
+	<link>
+		<link_name>wrist-hand</link_name>
+		<position_in_parent>-0.020300 -0.433100 0.000000</position_in_parent>
+		<orientation_in_parent>0.7071 0 0 0.7071</orientation_in_parent>
+		<mass>0.820000</mass>
+		<inertia>0.001800 0.001800 0.201300</inertia>
+		<center_of_mass>0.000000 0.000000 -0.019000</center_of_mass>
+		<joint_name>wrist-roll1</joint_name>
+		<parent_link_name>lower_arm</parent_link_name>
+		<joint_type>rz</joint_type>
+		<joint_limits>-3.141590 3.141590</joint_limits>
+		<default_joint_position>0.000000</default_joint_position>
+		<graphics>
+			<obj_file>
+				<name>Puma/graphics/hand_bl.obj</name>
+				<position_in_parent>0.000000 0.000000 0.000000</position_in_parent>
+				<orientation_in_parent>0.000000 0.000000 0.000000 1.000000</orientation_in_parent>
+				<collision_type>0</collision_type>
+			</obj_file>
+		</graphics>
+	</link>
+	<link>
+		<link_name>wrist-finger</link_name>
+		<position_in_parent>0.000000 0.000000 0.000000</position_in_parent>
+		<orientation_in_parent>0.7071 0 -0.7071 0</orientation_in_parent>
+		<mass>0.340000</mass>
+		<inertia>0.000300 0.000300 0.179400</inertia>
+		<center_of_mass>0.000000 0.000000 0.000000</center_of_mass>
+		<joint_name>wrist-pitch</joint_name>
+		<parent_link_name>wrist-hand</parent_link_name>
+		<joint_type>rz</joint_type>
+		<joint_limits>-3.141590 3.141590</joint_limits>
+		<default_joint_position>0.000000</default_joint_position>
+		<graphics>
+			<obj_file>
+				<name>Puma/graphics/finger_bl.obj</name>
+				<position_in_parent>0.000000 0.000000 0.000000</position_in_parent>
+				<orientation_in_parent>0.000000 0.000000 0.000000 1.000000</orientation_in_parent>
+				<collision_type>0</collision_type>
+			</obj_file>
+		</graphics>
+	</link>
+	<link>
+		<link_name>end-effector</link_name>
+		<position_in_parent>-0.070000 0.000000 0.000000</position_in_parent>
+		<orientation_in_parent>0.7071 0 0 0.7071</orientation_in_parent>
+		<mass>0.090000</mass>
+		<inertia>0.000150 0.000150 0.193040</inertia>
+		<center_of_mass>0.000000 0.000000 0.032000</center_of_mass>
+		<joint_name>wrist-roll2</joint_name>
+		<parent_link_name>wrist-finger</parent_link_name>
+		<joint_type>rz</joint_type>
+		<joint_limits>-3.141590 3.141590</joint_limits>
+		<default_joint_position>0.000000</default_joint_position>
+		<graphics>
+			<obj_file>
+				<name>Puma/graphics/shaft2_bl.obj</name>
+				<position_in_parent>0.000000 0.000000 0.000000</position_in_parent>
+				<orientation_in_parent>-0.707106 0 0 0.707106</orientation_in_parent>
+				<collision_type>0</collision_type>
+			</obj_file>
+		</graphics>
+	</link>
+</robot>
+</scl>

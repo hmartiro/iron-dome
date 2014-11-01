@@ -1,0 +1,146 @@
+<?xml version="1.0"?>
+<!DOCTYPE LOTUS SYSTEM "scl.dtd">
+
+<!-- Units are in Std International System -->
+<scl>
+    <robot name="PumaBot"> 
+        <spec>Puma</spec>
+        <!-- Derived from: "The explicit dynamic model and inertial parameters of the PUMA 560 arm",
+                           Armstrong, Khatib and Burdick, ICRA '86 -->
+        <file>specs/Puma/Puma-AKB86.xml</file>
+        <gravity>0.000   0.000   -9.81</gravity> 
+        <root_link>
+            <link_name>ground</link_name>
+            <position_in_parent>-0.300   0.000   -0.900</position_in_parent> 
+            <orientation_in_parent>0.000  0.000   0.000   1.000</orientation_in_parent>
+            <graphics>
+			        <obj_file>
+				        <name>Puma/graphics/base_bl.obj</name>
+				        <position_in_parent>0.000000 0.000000 0.000000</position_in_parent>
+				        <orientation_in_parent>0.000000 0.000000 0.000000 1.000000</orientation_in_parent>
+				        <scaling>1.000000 1.000000 1.000000</scaling>
+				        <collision_type>0</collision_type>
+			        </obj_file>
+            </graphics>
+        </root_link>
+        <!-- These flags can control the simulation's default behavior. -->
+        <flag_gc_damping>false</flag_gc_damping>
+        <flag_gc_limits>false</flag_gc_limits> <!-- Apply gc position limits (joint limits) -->
+        <flag_actuator_force_limits>true</flag_actuator_force_limits>
+        <flag_actuator_vel_limits>true</flag_actuator_vel_limits>
+        <flag_actuator_acc_limits>true</flag_actuator_acc_limits>
+        <flag_controller_on>true</flag_controller_on> <!-- Controller enabled at the start -->
+        <flag_logging_on>false</flag_logging_on>
+        <flag_wireframe_on>false</flag_wireframe_on>
+        <option_axis_frame_size>0.0</option_axis_frame_size> <!-- All options are optional -->
+    </robot>
+
+    <graphics name="PumaBotStdView">
+        <camera>
+            <pos>4.0   0.0   -0.3</pos>
+            <lookat>0.0   0.0   -0.1</lookat>
+            <up>0   0   1</up>
+            <clip>0 10</clip>
+            <background>0 0 0</background>
+        </camera>
+        <light>
+            <pos>2.0   0.0   0.0</pos>
+            <lookat>0.0   0.0   0.5</lookat>
+        </light>
+        <light>
+            <pos>-2.0   0.0   0.0</pos>
+            <lookat>0.0   0.0   0.0</lookat>
+        </light>
+        <background_color>0.0 0.0 0.0</background_color>
+    </graphics>
+
+    <controller name="PumaGcCtrl">
+        <type>gc</type>
+        <must_use_robot>PumaBot</must_use_robot>
+        <kp>100</kp>
+        <kv>15</kv>
+        <ka>0</ka>
+        <ki>20</ki>
+        <force_max>500</force_max>
+        <force_min>-500</force_min>
+    </controller>
+
+    <controller name="opc">
+        <type>task</type>
+        <must_use_robot>PumaBot</must_use_robot>
+        <!-- How often to recompute the model wrt. servo ticks. Default = 1 -->
+        <option_servo_to_model_rate>5</option_servo_to_model_rate>
+        
+        <task name="hand">
+            <type>TaskOpPos</type>
+            <parent_link>end-effector</parent_link>
+            <pos_in_parent>0.01 0.00 0.00</pos_in_parent>
+            <priority>0</priority>
+            <task_dof>3</task_dof>
+            <kp>200</kp>
+            <kv>25</kv>
+            <ka>0</ka>
+            <force_max>100</force_max>
+            <force_min>-100</force_min>
+            <flag_compute_op_gravity>1</flag_compute_op_gravity>
+            <flag_compute_op_cc_forces>0</flag_compute_op_cc_forces>
+            <flag_compute_op_inertia>1</flag_compute_op_inertia>
+        </task>
+
+        <!-- This task removes some range space
+             from the lower pri tasks
+             Note: Task dofs should match the gc set's size -->
+        <task name="JointAngleSetTask">
+            <type>TaskGcSet</type>
+            <priority>1</priority>
+            <task_dof>2</task_dof>
+            <kp>10</kp>
+            <kv>4</kv>
+            <ka>0</ka>
+            <force_max>10</force_max>
+            <force_min>-10</force_min>
+            <gc_set_names>end-effector wrist-finger</gc_set_names>
+            <gc_set_pos_des>0.0 0.0</gc_set_pos_des>
+        </task>
+
+        <!--0 task_dof means a gc task, ie full dofs -->
+        <task name="NullSpaceDampingTask">
+            <type>TaskNullSpaceDamping</type>
+            <priority>2</priority>
+            <task_dof>0</task_dof> 
+            <kp>0</kp>
+            <kv>40</kv>
+            <ka>0</ka>
+            <force_max>300</force_max>
+            <force_min>-300</force_min>
+        </task>
+    </controller>
+
+    <controller name="opcpida"> <!-- Integral gains -->
+        <type>task</type>
+        <must_use_robot>PumaBot</must_use_robot>
+        <task name="handpida">
+            <type>TaskOpPosPIDA1OrderInfTime</type>
+            <parent_link>end-effector</parent_link>
+            <pos_in_parent>0.01 0.00 0.00</pos_in_parent>
+            <priority>0</priority>
+            <task_dof>3</task_dof>
+            <kp>200</kp>
+            <kv>25</kv>
+            <ka>0</ka>
+            <ki>10</ki>
+            <force_max>100</force_max>
+            <force_min>-100</force_min>
+        </task>
+        <task name="NullSpaceDampingTaskpida">
+            <type>TaskNullSpaceDamping</type>
+            <priority>1</priority>
+            <task_dof>0</task_dof> 
+            <kp>0</kp>
+            <kv>40</kv>
+            <ka>0</ka>
+            <force_max>100</force_max>
+            <force_min>-100</force_min>
+        </task>
+    </controller>
+</scl>

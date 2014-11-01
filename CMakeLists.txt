@@ -1,11 +1,12 @@
 ################Initialize the Cmake Defaults#################
+
 cmake_minimum_required(VERSION 2.6)
 
 #Name the project
 project(iron_dome)
 
 #Set the build mode to debug by default
-SET(CMAKE_BUILD_TYPE Debug)
+#SET(CMAKE_BUILD_TYPE Debug)
 #SET(CMAKE_BUILD_TYPE Release)
 
 #Make sure the generated makefile is not shortened
@@ -49,6 +50,11 @@ SET(IRON_DOME_SRC_DIR ./src)
 
 #These are the source files that will be compiled.
 SET(ALL_SRC ${IRON_DOME_SRC_DIR}/iron_dome.cpp
+            ${IRON_DOME_SRC_DIR}/CIronDomeApp.cpp
+            ${IRON_DOME_SRC_DIR}/tasks/CTaskGcIronDome.cpp
+            ${IRON_DOME_SRC_DIR}/tasks/data_structs/STaskOpIronDome.cpp
+            ${IRON_DOME_SRC_DIR}/tasks/CTaskOpIronDome.cpp
+            ${SCL_INC_DIR}/robot/CRobotApp.cpp
             ${SCL_INC_DIR}/graphics/chai/CGraphicsChai.cpp 
             ${SCL_INC_DIR}/graphics/chai/ChaiGlutHandlers.cpp)
 
