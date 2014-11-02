@@ -32,13 +32,13 @@ How to set up OpenNI2 and Libfreenect:
 	make
 	export LD_LIBRARY_PATH=($YourPathtoLibfreenectFolder)/build/lib/
 ```
-5.Download and unpack OpenNI 2.2.0.33 Beta(X64/X86) from (http://structure.io/openni)
+5.Download and unpack OpenNI 2.2.0.33 Beta(X64/X86) from (http://structure.io/openni)  
 6.Go to the top OpenNI2 folder (usually OpenNI-Linux-X64-2.2) and run install
 
 ```
 	sudo sh install.sh
 ```
-7.Now copy the OpenNI2-FreenectDriver (libFreenectDriver.so.0.5.0, libFreenectDriver.so.0.5, libFreenectDriver.so) from *($YourPathtoLibfreenectFolder)/build/lib/OpenNI2-FreenectDriver* to *($YourPathtoOpenNI2Folder)/Samples/Bin/OpenNI2/Drivers/* and *($YourPathtoOpenNI2Folder)/Redist/OpenNI2/Drivers/*  
+7.Now copy the OpenNI2-FreenectDriver (libFreenectDriver.so.0.5.0, libFreenectDriver.so.0.5, libFreenectDriver.so) from   *($YourPathtoLibfreenectFolder)/build/lib/OpenNI2-FreenectDriver* to *($YourPathtoOpenNI2Folder)/Samples/Bin/OpenNI2/Drivers/* and *($YourPathtoOpenNI2Folder)/Redist/OpenNI2/Drivers/*  
 8.Plug in Kinect and in the terminal go to ($YourPathtoOpenNI2Folder)/Samples/Bin, run the SimpleViewer.
 
 ```
