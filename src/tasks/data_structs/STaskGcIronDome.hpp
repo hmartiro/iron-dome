@@ -30,13 +30,11 @@ scl. If not, see <http://www.gnu.org/licenses/>.
  *  Author: Samir Menon <smenon@stanford.edu>
  */
 
-#ifndef STASKGCIRONDOME_HPP_
-#define STASKGCIRONDOME_HPP_
+#pragma once
 
 #include <scl/control/task/data_structs/STaskBase.hpp>
 
-namespace scl_app
-{
+namespace scl_app {
 
   class STaskGcIronDome : public scl::STaskBase
   {
@@ -53,5 +51,4 @@ namespace scl_app
     { return true;  }
   };
 
-} /* namespace scl_app */
-#endif /* STASKGCIRONDOME_HPP_ */
+}

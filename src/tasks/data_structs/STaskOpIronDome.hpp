@@ -29,19 +29,17 @@ scl. If not, see <http://www.gnu.org/licenses/>.
  *  Author: Samir Menon <smenon@stanford.edu>
  */
 
-#ifndef STASKOPIRONDOME_HPP_
-#define STASKOPIRONDOME_HPP_
+#pragma once
 
 #include <scl/DataTypes.hpp>
 #include <scl/control/task/data_structs/STaskBase.hpp>
 
 #include <Eigen/Dense>
 
-namespace scl_app
-{
+namespace scl_app {
 
-  class STaskOpIronDome : public scl::STaskBase
-  {
+  class STaskOpIronDome : public scl::STaskBase {
+
   public:
     //Computed attributes (last measured, in x dimensional task-space)
     Eigen::VectorXd x_;             //Position in the global frame
@@ -75,7 +73,4 @@ namespace scl_app
      *  (b) pos in parent.*/
     virtual bool initTaskParams();
   };
-
 }
-
-#endif /* STASKOPIRONDOME_HPP_ */
