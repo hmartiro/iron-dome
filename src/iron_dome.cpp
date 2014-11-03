@@ -25,17 +25,17 @@ int main(int argc, char** argv) {
   CDatabase::getData()->dir_specs_ = CDatabase::getData()->cwd_ + std::string("specs/");
 
   //Initialize glut before the app
-#ifdef GRAPHICS_ON
-  if(!CDatabase::getData()->s_gui_.glut_initialized_) {
-    glutInit(&argc, argv);
-    CDatabase::getData()->s_gui_.glut_initialized_ = true;
-  }
-#endif
+  #ifdef GRAPHICS_ON
+    if(!CDatabase::getData()->s_gui_.glut_initialized_) {
+      glutInit(&argc, argv);
+      CDatabase::getData()->s_gui_.glut_initialized_ = true;
+    }
+  #endif
 
   //Convert the argc and arv into a vector of strings that the app can read
   //If you have custom paths etc, please set them here.
   std::vector<std::string> argvec;
-  for(int i=0;i<argc;++i) {
+  for(int i = 0; i < argc; ++i) {
     argvec.push_back(std::string(argv[i]));
   }
 
@@ -47,40 +47,59 @@ int main(int argc, char** argv) {
 
   //Register all the callback functions.
   if(!registerCallbacks()) {
-    std::cout<<"\nFailed to register callbacks"; return 1;
-  }
-
-  //Set up the threads
-#ifndef DEBUG
-  omp_set_num_threads(3);
-#else
-  omp_set_num_threads(1);
-#endif
-
-  int thread_id;
-  if(!app.setInitialStateForUIAndDynamics()) {
+    std::cout<<"\nFailed to register callbacks";
     return 1;
   }
 
+  if(!app.setInitialStateForUIAndDynamics())
+    return 1;
+
+  //Set up the threads
+  #ifndef DEBUG
+    omp_set_num_threads(4);
+  #else
+    omp_set_num_threads(1);
+  #endif
+
   app.t_start_ = sutil::CSystemClock::getSysTime();
-#pragma omp parallel private(thread_id)
-  {//Start threaded region
+
+  int thread_id;
+  #pragma omp parallel private(thread_id)
+  {
+
     thread_id = omp_get_thread_num();
 
-    /***********************Main Loop*****************************/
-    if(thread_id == 2) { app.runConsoleShell(); }
-    else {//No shell in debug mode for now.
-#ifndef DEBUG
-      app.runMainLoopThreaded(thread_id);  //Run multi-threaded in release mode
-#else
-      app.runMainLoop();          //Run single-threaded in debug mode
-#endif
+    std::cout << "\n Thread " << thread_id << " started!" << std::endl;
+
+    if(thread_id == 0 || thread_id == 1) {
+
+      #ifndef DEBUG
+            app.runMainLoopThreaded(thread_id);  //Run multi-threaded in release mode
+      #else
+            app.runMainLoop();          //Run single-threaded in debug mode
+      #endif
+
+    } if(thread_id == 2) {
+
+      app.runConsoleShell();
+
+    } else if(thread_id == 3) {
+
+      while(scl::CDatabase::getData()->running_) {
+        std::cout << "\n Loop " << std::endl;
+
+        sleep(1);
+      }
+    } else {
+      std::cerr << "ERROR: Unknown thread " << thread_id << std::endl;
     }
+
+    std::cout << "\n Thread " << thread_id << " completed!" << std::endl;
   }
+
   app.t_end_ = sutil::CSystemClock::getSysTime();
   std::cout << "\nSimulation Took Time : " << app.t_end_-app.t_start_ << " sec";
 
-  /****************************Deallocate Memory And Exit*****************************/
   app.terminate();
   return 0;
 }
