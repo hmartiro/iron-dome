@@ -21,7 +21,6 @@ void ProjectileManager::init() {
 void ProjectileManager::update() {
 
   double now = sutil::CSystemClock::getSysTime();
-  std::cout << "Time: " << now << std::endl;
 
   // Queue up the next pending projectile
   if(!pendingProjectileExists) {
@@ -46,11 +45,13 @@ void ProjectileManager::update() {
       std::end(projectiles)
   );
 
-  // Print out the positon of each active projectile
+  // Print out the current time and active projectiles
+  std::cout << "(" << now << ", ";
   for(Projectile& proj : projectiles) {
-    std::cout << "Projectile is at position " << proj.p.transpose()
-        << " with velocity " << proj.v.transpose() << "\n";
+    std::cout << "(" << proj.id << ", "
+        << "(" << proj.p[0] << ", " << proj.p[1] << ", " << proj.p[2] << ")), ";
   }
+  std::cout << ")," << std::endl;
 }
 
 void ProjectileManager::run() {

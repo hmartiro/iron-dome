@@ -13,13 +13,16 @@ class Projectile {
 public:
 
   Projectile() {};
-  Projectile(double t0,
+  Projectile(int id, double t0,
       const Eigen::Vector3d& p0, const Eigen::Vector3d& v0, const Eigen::Vector3d& a0);
 
   /**
   * Is this projectile expired?
   */
   static bool isExpired(const Projectile& p);
+
+  // ID number
+  int id;
 
   // Launch time
   double t0;
@@ -33,7 +36,6 @@ public:
   Eigen::Vector3d p;
   Eigen::Vector3d v;
   Eigen::Vector3d a;
-
 
   // State estimator
   ProjectileEstimator estimator;
@@ -73,6 +75,8 @@ public:
   Eigen::Vector3d observePosition(Projectile& proj);
 
 private:
+
+  int count;
 
   double t_avg;
   double v_avg;

@@ -16,8 +16,8 @@ int main(int argc, char* argv[]) {
   double theta_avg = M_PI / 4;
 
   // Test timestep and end time
-  double dt = 0.1;
-  double tEnd = 10;
+  double dt = 1.0 / 30.0;
+  double tEnd = 40;
 
   ProjectileGenerator pg = {t_avg, v_avg, theta_avg};
   ProjectileManager pm = {pg};
