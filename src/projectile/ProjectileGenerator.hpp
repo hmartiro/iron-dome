@@ -5,16 +5,38 @@
 #pragma once
 
 #include "Eigen/Dense"
+#include "ProjectileEstimator.hpp"
 #include <random>
 
 class Projectile {
 
 public:
+
   Projectile() {};
-  Projectile(double t, Eigen::Vector3d& p0, Eigen::Vector3d& v0);
+  Projectile(double t0,
+      const Eigen::Vector3d& p0, const Eigen::Vector3d& v0, const Eigen::Vector3d& a0);
+
+  /**
+  * Is this projectile expired?
+  */
+  static bool isExpired(const Projectile& p);
+
+  // Launch time
+  double t0;
+
+  // Initial state
   Eigen::Vector3d p0;
   Eigen::Vector3d v0;
-  double t;
+  Eigen::Vector3d a0;
+
+  // Current state
+  Eigen::Vector3d p;
+  Eigen::Vector3d v;
+  Eigen::Vector3d a;
+
+
+  // State estimator
+  ProjectileEstimator estimator;
 };
 
 /**
@@ -22,6 +44,9 @@ public:
 * positions and velocities. Throwing times are based on a Poisson
 * distribution, and the initial position/velocity is normally
 * distributed around a mean value.
+*
+* This class is for simulation *only*. When observing physical projectiles,
+* it is not used.
 */
 class ProjectileGenerator {
 
@@ -39,6 +64,13 @@ public:
   * Return a Projectile with launch time and initial position/velocity.
   */
   Projectile getNextProjectile();
+
+  /**
+  * Generate a new position observation for the given projectile, based
+  * on its initial conditions and the current time. Add gaussian noise
+  * to simulate measurement error.
+  */
+  Eigen::Vector3d observePosition(Projectile& proj);
 
 private:
 

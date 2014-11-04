@@ -11,14 +11,19 @@
 // Mean expected origin of projectiles
 static const Eigen::Vector3d p0_avg = {3, 0, 0};
 
+// Gravity vector
+static const Eigen::Vector3d gravity = {0, 0, -9.81};
+
 // Randomness of generated position and velocity
 static const double position_stddev = 1.0;
 static const double velocity_stddev = 0.5;
 
-Projectile::Projectile(double t, Eigen::Vector3d& p0, Eigen::Vector3d& v0) :
-  t(t),
-  p0(p0),
-  v0(v0) {
+Projectile::Projectile(double t0,
+    const Eigen::Vector3d& p0, const Eigen::Vector3d& v0, const Eigen::Vector3d& a0) :
+  t0(t0), p0(p0), v0(v0), a0(a0), p(p0), v(v0), a(a0) {}
+
+bool Projectile::isExpired(const Projectile& proj) {
+  return proj.p[0] < 0;
 }
 
 ProjectileGenerator::ProjectileGenerator(double t_avg, double v_avg, double theta_avg) :
@@ -47,6 +52,16 @@ Projectile ProjectileGenerator::getNextProjectile() {
   // Launch time = now + exp_dist(t_avg)
   double t = sutil::CSystemClock::getSysTime() + exp_dist(generator);
 
-  Projectile p = {t, p0, v0};
+  Projectile proj = {t, p0, v0, gravity};
+  return proj;
+}
+
+Eigen::Vector3d ProjectileGenerator::observePosition(Projectile& proj) {
+
+  double now = sutil::CSystemClock::getSysTime();
+  double t = now - proj.t0;
+
+  Eigen::Vector3d p = proj.p0 + proj.v0 * t + 0.5 * proj.a0 * t * t;
+
   return p;
 }
