@@ -9,13 +9,24 @@
 #include <algorithm>
 
 ProjectileManager::ProjectileManager(ProjectileGenerator& pg) :
-  pg(pg) {}
+  pg(pg), outfile_name("projectile_data.out") {}
 
 void ProjectileManager::init() {
 
   finished = false;
   pendingProjectileExists = false;
   projectiles = {};
+
+  if(outfile.is_open()) outfile.close();
+  outfile.open(outfile_name);
+  outfile << "(\n";
+}
+
+void ProjectileManager::close() {
+
+  outfile << ")" << std::endl;
+  outfile.close();
+  std::cout << "Closed.\n";
 }
 
 void ProjectileManager::update() {
@@ -45,13 +56,16 @@ void ProjectileManager::update() {
       std::end(projectiles)
   );
 
-  // Print out the current time and active projectiles
-  std::cout << "(" << now << ", ";
+  std::cout << "Time: " << now;
+  // Print out the current time and active projectiles to data file
+  outfile << "    (" << now << ", ";
   for(Projectile& proj : projectiles) {
-    std::cout << "(" << proj.id << ", "
+    outfile << "        (" << proj.id << ", "
         << "(" << proj.p[0] << ", " << proj.p[1] << ", " << proj.p[2] << ")), ";
+    std::cout << ", Projectile " << proj.id << ": " << proj.p.transpose();
   }
-  std::cout << ")," << std::endl;
+  outfile << ")," << std::endl;
+  std::cout << std::endl;
 }
 
 void ProjectileManager::run() {
@@ -60,4 +74,5 @@ void ProjectileManager::run() {
   while(!finished) {
     update();
   }
+  close();
 }

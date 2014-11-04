@@ -4,9 +4,11 @@
 
 #pragma once
 
-#include "ProjectileGenerator.hpp"
-
 #include <vector>
+#include <string>
+#include <fstream>
+
+#include "ProjectileGenerator.hpp"
 
 class ProjectileManager {
 
@@ -25,10 +27,18 @@ public:
   void update();
 
   /**
+  * Close down the output file.
+  */
+  void close();
+
+  /**
   * Call init(), then loop through update() until finished
   * is set to true. Convenience method only.
   */
   void run();
+
+
+  std::ofstream outfile;
 
 private:
 
@@ -44,4 +54,7 @@ private:
 
   // Stop run()
   bool finished;
+
+  // File to write data to
+  std::string outfile_name;
 };

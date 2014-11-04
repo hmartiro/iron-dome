@@ -9,15 +9,15 @@
 #include <sutil/CSystemClock.hpp>
 
 // Mean expected origin of projectiles
-static const Eigen::Vector3d p0_avg = {3, 0, 0};
+static const Eigen::Vector3d p0_avg = {3, 0, 0.5};
 
 // Gravity vector
 static const Eigen::Vector3d gravity = {0, 0, -9.81};
 
 // Randomness parameters
-static const double p0_stddev = 1.0;
-static const double v0_stddev = 0.5;
-static const double pObserved_stddev = 0.05;
+static const double p0_stddev = 0.3;
+static const double v0_stddev = 0.3;
+static const double pObserved_stddev = 0.03;
 
 Projectile::Projectile(int id, double t0,
     const Eigen::Vector3d& p0, const Eigen::Vector3d& v0, const Eigen::Vector3d& a0) :
