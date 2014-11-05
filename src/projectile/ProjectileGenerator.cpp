@@ -4,27 +4,30 @@
 
 #include <chrono>
 #include <cmath>
+#include <iostream>
 
 #include "ProjectileGenerator.hpp"
 #include <sutil/CSystemClock.hpp>
 
 // Mean expected origin of projectiles
-static const Eigen::Vector3d p0_avg = {3, 0, 0.5};
+static const Eigen::Vector3d p0_avg = {3.4, 0, 0};
 
 // Gravity vector
 static const Eigen::Vector3d gravity = {0, 0, -9.81};
 
-// Randomness parameters
+// Initial condition per-axis standard deviation
 static const double p0_stddev = 0.3;
-static const double v0_stddev = 0.3;
-static const double pObserved_stddev = 0.03;
+static const double v0_stddev = 0.2;
+
+// Simulated measurement noise
+static const double pObserved_stddev = 0.00;
 
 Projectile::Projectile(int id, double t0,
     const Eigen::Vector3d& p0, const Eigen::Vector3d& v0, const Eigen::Vector3d& a0) :
   id(id), t0(t0), p0(p0), v0(v0), a0(a0), p(p0), v(v0), a(a0) {}
 
-bool Projectile::isExpired(const Projectile& proj) {
-  return proj.p[0] < 0;
+bool Projectile::isExpired(const std::pair<int, Projectile>& pair) {
+  return pair.second.p[0] < -1;
 }
 
 ProjectileGenerator::ProjectileGenerator(double t_avg, double v_avg, double theta_avg) :

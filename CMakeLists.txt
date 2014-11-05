@@ -41,12 +41,16 @@ SET(TIXML_INC_DIR ${SCL_BASE_DIR}3rdparty/tinyxml)
 INCLUDE_DIRECTORIES(${SCL_INC_DIR} ${SCL_INC_DIR_BASE} ${TAO_INC_DIR} ${EIGEN_INC_DIR} ${CHAI_INC_DIR} ${SUTIL_INC_DIR} ${TIXML_INC_DIR}) 
 
 #Set the compilation flags
-SET(CMAKE_CXX_FLAGS "-Wall -fPIC -fopenmp")
+SET(CMAKE_CXX_FLAGS "-Wall -fPIC -fopenmp  -Wno-unused-local-typedefs")
 SET(CMAKE_CXX_FLAGS_DEBUG "-ggdb -O0 -pg -std=c++0x -DGRAPHICS_ON -DASSERT=assert -DDEBUG=1")
 SET(CMAKE_CXX_FLAGS_RELEASE "-O3 -std=c++0x -DGRAPHICS_ON -DW_THREADING_ON -DNDEBUG")
 
 #Set all the sources required for the library
 SET(IRON_DOME_SRC_DIR ./src)
+
+SET(PROJECTILE_SRC ${IRON_DOME_SRC_DIR}/projectile/ProjectileGenerator.cpp
+                   ${IRON_DOME_SRC_DIR}/projectile/ProjectileEstimator.cpp
+                   ${IRON_DOME_SRC_DIR}/projectile/ProjectileManager.cpp)
 
 #These are the source files that will be compiled.
 SET(ALL_SRC ${IRON_DOME_SRC_DIR}/iron_dome.cpp
@@ -57,7 +61,8 @@ SET(ALL_SRC ${IRON_DOME_SRC_DIR}/iron_dome.cpp
             ${IRON_DOME_SRC_DIR}/IronDomeCallbacks.hpp
             ${SCL_INC_DIR}/robot/CRobotApp.cpp
             ${SCL_INC_DIR}/graphics/chai/CGraphicsChai.cpp 
-            ${SCL_INC_DIR}/graphics/chai/ChaiGlutHandlers.cpp)
+            ${SCL_INC_DIR}/graphics/chai/ChaiGlutHandlers.cpp
+            ${PROJECTILE_SRC})
 
 #Set the executable to be built and its required linked libraries (the ones in the /usr/lib dir)
 add_executable(iron_dome ${ALL_SRC})
@@ -94,9 +99,4 @@ target_link_libraries(iron_dome ${CHAI_LIBRARY})
 ###############CODE TO FIND AND LINK REMANING LIBS ######################
 target_link_libraries(iron_dome gomp GL GLU GLEW glut ncurses rt dl)
 
-SET(PROJECTILE_SRC ${IRON_DOME_SRC_DIR}/projectile/projectile_test.cpp
-                   ${IRON_DOME_SRC_DIR}/projectile/ProjectileGenerator.cpp
-                   ${IRON_DOME_SRC_DIR}/projectile/ProjectileEstimator.cpp
-                   ${IRON_DOME_SRC_DIR}/projectile/ProjectileManager.cpp)
-
-add_executable(projectile_test ${PROJECTILE_SRC})
+add_executable(projectile_test ${IRON_DOME_SRC_DIR}/projectile/projectile_test.cpp ${PROJECTILE_SRC})

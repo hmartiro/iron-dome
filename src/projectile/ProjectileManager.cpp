@@ -41,25 +41,30 @@ void ProjectileManager::update() {
 
   // Activate the pending projectile when the time comes
   if(now >= pendingProjectile.t0) {
-    projectiles.push_back(pendingProjectile);
+    projectiles[pendingProjectile.id] = pendingProjectile;
     pendingProjectileExists = false;
   }
 
   // Update the position of each projectile
-  for(Projectile& proj : projectiles) {
-    proj.p = pg.observePosition(proj);
+  for(std::pair<const int, Projectile>& pair : projectiles) {
+    pair.second.p = pg.observePosition(pair.second);
   }
 
   // Get rid of expired projectiles
-  projectiles.erase(
-      std::remove_if(std::begin(projectiles), std::end(projectiles), Projectile::isExpired),
-      std::end(projectiles)
-  );
+  for(auto it = projectiles.begin();it != projectiles.end();) {
+    if (Projectile::isExpired(*it)) {
+      std::cout << "Removing expired projectile " << (*it).first << "\n";
+      projectiles.erase(it++);
+    } else {
+      ++it;
+    }
+  }
 
   std::cout << "Time: " << now;
   // Print out the current time and active projectiles to data file
   outfile << "    (" << now << ", ";
-  for(Projectile& proj : projectiles) {
+  for(std::pair<const int, Projectile>& pair : projectiles) {
+    Projectile& proj = pair.second;
     outfile << "        (" << proj.id << ", "
         << "(" << proj.p[0] << ", " << proj.p[1] << ", " << proj.p[2] << ")), ";
     std::cout << ", Projectile " << proj.id << ": " << proj.p.transpose();
@@ -75,4 +80,8 @@ void ProjectileManager::run() {
     update();
   }
   close();
+}
+
+const std::map<int, Projectile>& ProjectileManager::getActiveProjectiles() {
+  return projectiles;
 }
