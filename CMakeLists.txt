@@ -15,7 +15,7 @@ SET(CMAKE_VERBOSE_MAKEFILE ON)
 ################Initialize the 3rdParty lib#################
 
 #Set scl base directory
-SET(SCL_BASE_DIR ~/projects/scl-manips-v2.git/)
+SET(SCL_BASE_DIR ~/Documents/scl-manips-v2.git/)
 
 ###(a) Scl controller
 SET(SCL_INC_DIR ${SCL_BASE_DIR}src/scl/)
@@ -49,12 +49,13 @@ SET(CMAKE_CXX_FLAGS_RELEASE "-O3 -std=c++0x -DGRAPHICS_ON -DW_THREADING_ON -DNDE
 SET(IRON_DOME_SRC_DIR ./src)
 
 #These are the source files that will be compiled.
-SET(ALL_SRC ${IRON_DOME_SRC_DIR}/iron_dome.cpp
+SET(ALL_SRC ${IRON_DOME_SRC_DIR}/robot_sim.cpp
             ${IRON_DOME_SRC_DIR}/CIronDomeApp.cpp
             ${IRON_DOME_SRC_DIR}/tasks/CTaskGcIronDome.cpp
             ${IRON_DOME_SRC_DIR}/tasks/data_structs/STaskOpIronDome.cpp
             ${IRON_DOME_SRC_DIR}/tasks/CTaskOpIronDome.cpp
             ${IRON_DOME_SRC_DIR}/IronDomeCallbacks.hpp
+	    #${IRON_DOME_SRC_DIR}/robot_sim/robot_sim.cpp
             ${SCL_INC_DIR}/robot/CRobotApp.cpp
             ${SCL_INC_DIR}/graphics/chai/CGraphicsChai.cpp 
             ${SCL_INC_DIR}/graphics/chai/ChaiGlutHandlers.cpp)
