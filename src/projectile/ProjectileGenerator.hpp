@@ -19,7 +19,7 @@ public:
   /**
   * Is this projectile expired?
   */
-  static bool isExpired(const Projectile& p);
+  static bool isExpired(const std::pair<int, Projectile>& p);
 
   // ID number
   int id;

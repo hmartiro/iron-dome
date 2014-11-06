@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <vector>
+#include <map>
 #include <string>
 #include <fstream>
 
@@ -37,8 +37,10 @@ public:
   */
   void run();
 
-
-  std::ofstream outfile;
+  /**
+  * Return a const reference to the active projectiles.
+  */
+  const std::map<int, Projectile>& getActiveProjectiles();
 
 private:
 
@@ -46,7 +48,7 @@ private:
   ProjectileGenerator& pg;
 
   // List of active projectiles
-  std::vector<Projectile> projectiles;
+  std::map<int, Projectile> projectiles;
 
   // Next projectile to be generated
   Projectile pendingProjectile;
@@ -57,4 +59,5 @@ private:
 
   // File to write data to
   std::string outfile_name;
+  std::ofstream outfile;
 };

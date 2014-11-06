@@ -4,6 +4,8 @@
 
 #include "CIronDomeApp.hpp"
 #include "IronDomeCallbacks.hpp"
+#include "projectile/ProjectileGenerator.hpp"
+#include "projectile/ProjectileManager.hpp"
 
 #ifdef GRAPHICS_ON
 #include <scl/graphics/chai/ChaiGlutHandlers.hpp>
@@ -11,6 +13,7 @@
 #include <util/HelperFunctions.hpp>
 
 #include <sutil/CSystemClock.hpp>
+#include <vector>
 
 #include <omp.h>
 #include <GL/freeglut.h>
@@ -81,15 +84,58 @@ int main(int argc, char** argv) {
 
     } if(thread_id == 2) {
 
-      app.runConsoleShell();
+      //app.runConsoleShell();
 
     } else if(thread_id == 3) {
 
-      while(scl::CDatabase::getData()->running_) {
-        std::cout << "\n Loop " << std::endl;
+      // Projectile generation parameters
+      double t_avg = 3.0;
+      double v_avg = 6.5;
+      double theta_avg = 45 * (M_PI / 180);
 
-        sleep(1);
+      // Test timestep and end time
+      double dt = 1.0 / 30.0;
+
+      ProjectileGenerator pg = {t_avg, v_avg, theta_avg};
+      ProjectileManager pm = {pg};
+
+      // Get graphics objects
+      scl::CGraphicsChai rchai = app.chai_gr_;
+      SGraphicsChai* graphics = rchai.getChaiData();
+      chai3d::cWorld* chai_world = graphics->chai_world_;
+
+      timespec ts = {0, static_cast<int>(dt * 1e9)};
+
+      double radius = 0.04;
+      std::map<int, chai3d::cMesh*> spheres;
+
+      // Loop through the ProjectileManager
+      pm.init();
+      while(scl::CDatabase::getData()->running_) {
+
+        pm.update();
+
+        const std::map<int, Projectile>& projectiles = pm.getActiveProjectiles();
+        for(const std::pair<int, Projectile>& pair: projectiles) {
+          const Projectile& proj = pair.second;
+          if(spheres.count(proj.id) == 0) {
+            spheres[proj.id] = new chai3d::cMesh();
+            chai3d::cCreateSphere(spheres[proj.id], radius);
+            chai_world->addChild(spheres[proj.id]);
+          }
+          spheres[proj.id]->setLocalPos(proj.p[0], proj.p[1], proj.p[2]);
+        }
+
+        for(std::pair<int, chai3d::cMesh*> pair : spheres) {
+          if(projectiles.count(pair.first) == 0) {
+            chai_world->removeChild(pair.second);
+          }
+        }
+        nanosleep(&ts, NULL);
       }
+
+      pm.close();
+
     } else {
       std::cerr << "ERROR: Unknown thread " << thread_id << std::endl;
     }
