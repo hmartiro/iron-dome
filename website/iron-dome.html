@@ -163,9 +163,28 @@
                     position and rotation, respectively, and subscripts C and D
                     stand for current and desired.
                     <br /><br />
+			<p>
+			Our control implementation for simulation is based on giving the robot a desired position
+			and orientation in order to meet the balls flying at it, and using the known dynamics of the 
+			robot to calculate the necessary joint torques to reach the commanded configuration (Equation 1). 
+			The torques for the translational and rotational parts of the controller
+			are calculated separately and then combined and summed with the neccesary torques to counteract gravity.
+			<p>
+			We use the pseudo-inverse method to 
+			find the task space mass matrix \(\Lambda\)
+			from the joint space matrix (4)(5). We find the task space torques using PD control (6)(7), 
+			using the error in position (8) for the cartesian force and error in orientation (9) 
+			for the moments \(F_{R}\). 
+			<p>
 
+			The error in orientation (9) is found by taking the cross product of each column vector in the 
+			current rotation matrix \(R_{CO}\) by the column vectors in the matrix 
+			representing the desired rotation \(R_{DO}\). This gives a torque axis and magnitude which the 
+			proportional rotation gain \(k_{pR}\) is applied to.
+    <br /><br />
                     \[
-\begin{align*}
+
+\begin{align}
 \tau &amp;= \tau_{P}+\tau_{R}+G(q) \\
 \tau_{P} &amp;= J^{T}_{P}(\Lambda_{P}F_{P})\\
 \tau_{R} &amp;= J^{T}_{R}(\Lambda_{R}F_{R})\\
@@ -177,16 +196,16 @@ F_{R} &amp;= -k_{pR}*{\delta}\phi - k_{vR}*\omega  \\
 \delta\phi &amp;= -\frac{1}{2}(s_{1C}\times s_{1D}+s_{2C}\times s_{2D}+s_{3C}\times s_{3D})\\
 \omega &amp;= J_{R}*\dot{q}\\
 \dot{x} &amp;= J_{P}*\dot{q}\\
-\end{align*} \\
+\end{align} \\
 
-R_{C0} =
+R_{CO} =
 \begin{bmatrix}
 \vert &amp; \vert &amp; \vert\\
 s_{1C} &amp; s_{2C} &amp; s_{3C}\\
 \vert &amp; \vert &amp; \vert\\
 \end{bmatrix}\\
 
-R_{D0} =
+R_{DO} =
 \begin{bmatrix}
 \vert &amp; \vert &amp; \vert\\
 s_{1D} &amp; s_{2D} &amp; s_{3D}\\
