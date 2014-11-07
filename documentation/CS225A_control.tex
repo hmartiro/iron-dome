@@ -1,0 +1,33 @@
+\documentclass[10pt,a4paper,notitlepage]{report}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\begin{document}
+\begin{align*}
+\tau &= \tau_{P}+\tau_{R}+G(q) \\
+\tau_{P} &= J^{T}_{P}(\Lambda_{P}F_{P})\\
+\tau_{R} &= J^{T}_{R}(\Lambda_{R}F_{R})\\
+\Lambda_{P} &= (J_{P}M^{-1}J_{P}^{T})^{-1}\\
+\Lambda_{R} &= (J_{R}M^{-1}J_{R}^{T})^{-1} \\
+F_{P} &= -k_{pP}*dx - k_{vP}*\dot{x}\\
+F_{R} &= -k_{pR}*d\phi - k_{vR}*\omega  \\
+dx &= x_{C} - x_{D}\\
+d\phi &= -\frac{1}{2}(s_{1C}\times s_{1D}+s_{2C}\times s_{2D}+s_{3C}\times s_{3D})\\
+\omega &= J_{R}*\dot{q}\\
+\dot{x} &= J_{P}*\dot{q}\\
+\end{align*}
+$R_{C0} = 
+\begin{bmatrix}
+\vert & \vert & \vert\\
+s_{1C} & s_{2C} & s_{3C}\\
+\vert & \vert & \vert\\
+\end{bmatrix}\\
+R_{D0} = 
+\begin{bmatrix}
+\vert & \vert & \vert\\
+s_{1D} & s_{2D} & s_{3D}\\
+\vert & \vert & \vert\\
+\end{bmatrix}
+$
+\end{document}
