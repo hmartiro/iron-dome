@@ -15,6 +15,9 @@
 	<script type="text/javascript" src="js/jquery.min.js"></script>
 	<script type="text/javascript" src="js/bootstrap.min.js"></script>
 	<script type="text/javascript" src="js/scripts.js"></script>
+    <script type="text/javascript"
+  src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+</script>
 </head>
 
 <body>
@@ -155,9 +158,42 @@
 			<div class="row clearfix">
 				<h3>Control Algorithm</h3>
 				<p>
-                    Intro here about our controller.
+                    Below are the equations to calculate the commanded generalized
+                    forces, \(\tau\), of our robot. Subscripts P and R stand for
+                    position and rotation, respectively, and subscripts C and D
+                    stand for current and desired.
                     <br /><br />
-					LaTeX equations we derived here, using MathJax.
+
+                    \[
+\begin{align*}
+\tau &amp;= \tau_{P}+\tau_{R}+G(q) \\
+\tau_{P} &amp;= J^{T}_{P}(\Lambda_{P}F_{P})\\
+\tau_{R} &amp;= J^{T}_{R}(\Lambda_{R}F_{R})\\
+\Lambda_{P} &amp;= (J_{P}M^{-1}J_{P}^{T})^{-1}\\
+\Lambda_{R} &amp;= (J_{R}M^{-1}J_{R}^{T})^{-1} \\
+F_{P} &amp;= -k_{pP}*{\delta}x - k_{vP}*\dot{x}\\
+F_{R} &amp;= -k_{pR}*{\delta}\phi - k_{vR}*\omega  \\
+{\delta}x &amp;= x_{C} - x_{D}\\
+\delta\phi &amp;= -\frac{1}{2}(s_{1C}\times s_{1D}+s_{2C}\times s_{2D}+s_{3C}\times s_{3D})\\
+\omega &amp;= J_{R}*\dot{q}\\
+\dot{x} &amp;= J_{P}*\dot{q}\\
+\end{align*} \\
+
+R_{C0} =
+\begin{bmatrix}
+\vert &amp; \vert &amp; \vert\\
+s_{1C} &amp; s_{2C} &amp; s_{3C}\\
+\vert &amp; \vert &amp; \vert\\
+\end{bmatrix}\\
+
+R_{D0} =
+\begin{bmatrix}
+\vert &amp; \vert &amp; \vert\\
+s_{1D} &amp; s_{2D} &amp; s_{3D}\\
+\vert &amp; \vert &amp; \vert\\
+\end{bmatrix}
+
+\]
 				</p>
 			</div>
 
