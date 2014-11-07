@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>CS225A Project Template</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="">
+  <meta name="author" content="samir, brian" >
+
+
+	<link href="css/bootstrap.min.css" rel="stylesheet">
+	<link href="css/style.css" rel="stylesheet">
+
+
+	<script type="text/javascript" src="js/jquery.min.js"></script>
+	<script type="text/javascript" src="js/bootstrap.min.js"></script>
+	<script type="text/javascript" src="js/scripts.js"></script>
+    <script type="text/javascript"
+  src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+</script>
+</head>
+
+<body>
+<div class="container">
+	<div class="row clearfix">
+		<div class="col-md-12 column">
+
+			<!-- CS225A WEBSITE HEADER START -->
+			<nav class="navbar navbar-default" role="navigation">
+				<div class="navbar-header">
+					 <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1">
+					 <span class="sr-only">Toggle navigation</span><span class="icon-bar"></span>
+					 <span class="icon-bar"></span>
+					 <span class="icon-bar"></span>
+					 </button>
+					 <a class="navbar-brand" >CS225A</a>
+				</div>
+
+				<div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+					<ul class="nav navbar-nav">
+						<li>
+							<a href="http://cs.stanford.edu/groups/manips/teaching/cs225a/">Home</a>
+						</li>
+						<li>
+							<a href="http://cs.stanford.edu/groups/manips/teaching/cs225a/projects.html">Projects</a>
+						</li>
+						<li>
+							<a href="http://web.stanford.edu/~smenon/scl.html" target="_blank">Control & Simulation</a>
+						</li>
+						</li>
+					</ul>
+					<ul class="nav navbar-nav navbar-right">
+						<li>
+							<a href="http://piazza.com/stanford/fall2014/cs225a" target="_blank">Piazza</a>
+						</li>
+						<li>
+							<a href="http://cs.stanford.edu/groups/manips/" target="_blank">Stanford Robotics</a>
+						</li>
+					</ul>
+				</div>
+
+			</nav>
+			<!-- CS225A WEBSITE HEADER END -->
+
+			<!-- PERSONALIZED HEADER PICTURES -->
+			<div class="carousel slide" id="carousel-25687">
+				<ol class="carousel-indicators">
+					<!-- MY FIRST COOL WHITE DOT FOR FIRST PICTURE -->
+					<li class="active" data-slide-to="0" data-target="#carousel-25687">
+					</li>
+					<!-- MY SECOND COOL WHITE DOT FOR SECOND PICTURE -->
+					<li data-slide-to="1" data-target="#carousel-25687">
+					</li>
+					<!-- MOAR COOL WHITE DOTS -->
+					<!-- EVEN MOAR COOL WHITE DOTS -->
+				</ol>
+				<div class="carousel-inner">
+					<!--FIRST PICTURE-->
+					<div class="item active">
+						<img alt="" src="./pictures/puma-sim-ball.png">
+						<div class="carousel-caption">
+							<h3>
+								Task space control and simulated projectile
+							</h3>
+						</div>
+					</div>
+					 <!--SECOND PICTURE END-->
+					<div class="item">
+						<img alt="" src="./pictures/projectile_simulation_plot.png">
+						<div class="carousel-caption">
+							<h3>
+								Projectile tracking from noisy observations
+							</h3>
+						</div>
+					</div>
+					<!-- MOAR PICTURE ENTRIES -->
+					<!-- EVEN MOAR PICTURE ENTRIES -->>
+				</div> <a class="left carousel-control" href="#carousel-25687" data-slide="prev"><span class="glyphicon glyphicon-chevron-left"></span></a> <a class="right carousel-control" href="#carousel-25687" data-slide="next"><span class="glyphicon glyphicon-chevron-right"></span></a>
+			</div>
+
+			<!-- ABSTRACT -->
+			<div class="row clearfix">
+				<h2>Iron Dome, Fall 2014</h2>
+				<h3>Abstract</h3>
+				<p>
+				Like the Iron Dome air defense system, our goal is to protect a target
+                from incoming missiles. In this case, the missiles will be balls, and
+                the defense system will be a robot arm. We intend to create the necessary
+                controllers and software to predict the trajectory of the incoming ball,
+                and move the end effector of our robot arm to launch a projectile to intercept
+                the ball. Users will toss balls at the robot, and it will use a Kinect detect
+                the ball and estimate a trajectory along which it is flying.
+
+                It would then plan a motion trajectory such that the projectile will
+                have a proper initial velocity to collide with the ball in the air.
+                We will build up to this by working on the necessary position and orientation controllers,
+                then a velocity controller. Our goal is to maximize the number of projectiles
+                that can be safely blocked in a given time span.
+				</p>
+			</div>
+
+			<div class="hrline"> <hr /> </div>
+
+			<!-- TEAM MEMBERS -->
+			<div class="row clearfix">
+				<h3> Members </h3>
+				<div class="row clearfix">
+					<div class="col-md-3 column">
+						<h4> Hayk Martirosyan </h4>
+						<p>
+							<a href="http://haykmartirosyan.com/" target="_blank">
+								<img alt="" src="./pictures/batman-smiley.jpg" height="150" width="150">
+							</a>
+						</p>
+					</div>
+					<div class="col-md-3 column">
+						<h4> Daniel O'Shea </h4>
+						<p>
+							<a href="https://www.linkedin.com/in/danielmoshea" target="_blank">
+								<img alt="" src="./pictures/batman-smiley.jpg" height="150" width="150">
+							</a>
+						</p>
+					</div>
+					<div class="col-md-3 column">
+						<h4> Wanxi Liu </h4>
+						<p>
+
+							<a href="https://www.linkedin.com/in/wancy" target="_blank">
+								<img alt="" src="./pictures/batman-smiley.jpg" height="150" width="150">
+							</a>
+						</p>
+					</div>
+				</div>
+			</div>
+
+			<!--INTRODUCTION-->
+			<div class="hrline"> <hr /> </div> <br />
+			<div class="row clearfix">
+				<h3>Control Algorithm</h3>
+				<p>
+                    Below are the equations to calculate the commanded generalized
+                    forces, \(\tau\), of our robot. Subscripts P and R stand for
+                    position and rotation, respectively, and subscripts C and D
+                    stand for current and desired.
+                    <br /><br />
+
+                    \[
+\begin{align*}
+\tau &amp;= \tau_{P}+\tau_{R}+G(q) \\
+\tau_{P} &amp;= J^{T}_{P}(\Lambda_{P}F_{P})\\
+\tau_{R} &amp;= J^{T}_{R}(\Lambda_{R}F_{R})\\
+\Lambda_{P} &amp;= (J_{P}M^{-1}J_{P}^{T})^{-1}\\
+\Lambda_{R} &amp;= (J_{R}M^{-1}J_{R}^{T})^{-1} \\
+F_{P} &amp;= -k_{pP}*{\delta}x - k_{vP}*\dot{x}\\
+F_{R} &amp;= -k_{pR}*{\delta}\phi - k_{vR}*\omega  \\
+{\delta}x &amp;= x_{C} - x_{D}\\
+\delta\phi &amp;= -\frac{1}{2}(s_{1C}\times s_{1D}+s_{2C}\times s_{2D}+s_{3C}\times s_{3D})\\
+\omega &amp;= J_{R}*\dot{q}\\
+\dot{x} &amp;= J_{P}*\dot{q}\\
+\end{align*} \\
+
+R_{C0} =
+\begin{bmatrix}
+\vert &amp; \vert &amp; \vert\\
+s_{1C} &amp; s_{2C} &amp; s_{3C}\\
+\vert &amp; \vert &amp; \vert\\
+\end{bmatrix}\\
+
+R_{D0} =
+\begin{bmatrix}
+\vert &amp; \vert &amp; \vert\\
+s_{1D} &amp; s_{2D} &amp; s_{3D}\\
+\vert &amp; \vert &amp; \vert\\
+\end{bmatrix}
+
+\]
+				</p>
+			</div>
+
+			<!--BACKGROUND-->
+			<!-- <div class="hrline"> <hr /> </div> <br />
+			<div class="row clearfix">
+				<h3>Background</h3>
+				<p>
+					Let me tell you more... And a picture
+				</p>
+				<img alt="" src="./pictures/JediBot-crop.jpg" height="150" width="450">
+				<p>
+					Let me tell you more...
+				</p>
+			</div> -->
+
+			<!--Theory-->
+			<div class="hrline"> <hr /> </div> <br />
+			<div class="row clearfix">
+				<h3>High-level Algorithm</h3>
+				<p>
+					State machine information here.
+				</p>
+			</div>
+
+			<!--EXPERIMENTAL RESULTS-->
+			<!-- <div class="hrline"> <hr /> </div> <br />
+			<div class="row clearfix">
+				<h3>Experimental Results</h3>
+				<p>
+					Let me tell you more... And a video
+				</p>
+				<iframe width="620" height="465" src="//www.youtube.com/embed/_b6dan2lId8" frameborder="0" allowfullscreen></iframe>
+				<p>
+					Let me tell you more...
+				</p>
+
+			</div> -->
+
+			<!--CONCLUSION-->
+			<div class="hrline"> <hr /> </div> <br />
+			<div class="row clearfix">
+				<h3>Status</h3>
+				<ul>
+                    <li>We have working position/orientation control of our end effector.</li>
+                    <li>We have laid out a plan for a high-level state machine for the system.</li>
+                    <li>We have classes to generate projectiles based on statistically
+                    realistic initial conditions and noisy observations.</li>
+                    <li>We have a thread that runs within the SCL app, that provides information
+                        about real or simulated projectiles.
+                    <li>We have a preliminary Kalman filter that appears to work well on test data.</li>
+                    <li>We have a Kinect v2 and are working on projectile detection.</li>
+                    <li>We have preliminary plans to interface with the Kuka using the ROS
+                        interface.</li>
+                    <li>We have started to consider safety features.</li>
+                </ul>
+			</div>
+
+			<!--REFERENCES-->
+			<div class="hrline"> <hr /> </div> <br />
+
+			<div class="row clearfix">
+				<h3>References</h3>
+				<!--REFERENCE 1-->
+				<!-- O. Khatib and S.Y. Chung,
+				"SupraPeds: Humanoid Contact-Supported Locomotion for 3D Unstructured Environments"
+				<i>, ICRA,</i>, Hong Kong, China, May, 2014.
+				<br /><br /> -->
+				<!--REFERENCE 2-->
+				O. Khatib,
+				"A Unified Approach for Motion and Force Control of Robot Manipulators:	The Operational Space Formulation"
+				<i>, IEEE Journal of Robotics and Automation</i>, RA-3, 1, 43--53, February, 1987.
+				<br /><br />
+			</div>
+
+		</div>
+	</div>
+	<br />
+
+	<!-- FOOTER -->
+	<div class="hrline"> <hr /> </div> <br />
+	<div class="row clearfix">
+		<div class="col-md-3 column">
+		</div>
+		<div class="col-md-6 column">
+				<div class = "text-center">
+					<p>
+					   &nbsp;&nbsp;&nbsp; Designed by Samir Menon. <br />
+						&nbsp;&nbsp;&nbsp; &#169; Stanford University. <br />
+						&nbsp;&nbsp;&nbsp; Last updated on September 18th, 2014
+					</p>
+				</div>
+		</div>
+		<div class="col-md-3 column">
+		</div>
+	</div>
+	<br />
+	<br />
+	<br />
+	<!-- END OF DOCUMENT -->
+</div>
+</body>
+</html>

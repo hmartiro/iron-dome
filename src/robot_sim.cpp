@@ -65,139 +65,143 @@ scl. If not, see <http://www.gnu.org/licenses/>.
 * */
 int main(int argc, char** argv)
 {
-    std::cout<<"\n***************************************\n";
-    std::cout<<"Standard Control Library Tutorial #4";
-    std::cout<<"\n***************************************\n";
+  std::cout<<"\n***************************************\n";
+  std::cout<<"Standard Control Library Tutorial #4";
+  std::cout<<"\n***************************************\n";
 
-    scl::SRobotParsed rds;     //Robot data structure....
-    scl::SGraphicsParsed rgr;  //Robot graphics data structure...
-    scl::SGcModel rgcm;        //Robot data structure with dynamic quantities...
-    scl::SRobotIO rio;         //I/O data structure
-    scl::CGraphicsChai rchai;  //Chai interface (updates graphics rendering tree etc.)
-    scl::CDynamicsScl dyn_scl; //Robot kinematics and dynamics computation object...
-    scl::CDynamicsTao dyn_tao; //Robot physics integrator
-    scl::CParserScl p;         //This time, we'll parse the tree from a file...
-    sutil::CSystemClock::start();
+  scl::SRobotParsed rds;     //Robot data structure....
+  scl::SGraphicsParsed rgr;  //Robot graphics data structure...
+  scl::SGcModel rgcm;        //Robot data structure with dynamic quantities...
+  scl::SRobotIO rio;         //I/O data structure
+  scl::CGraphicsChai rchai;  //Chai interface (updates graphics rendering tree etc.)
+  scl::CDynamicsScl dyn_scl; //Robot kinematics and dynamics computation object...
+  scl::CDynamicsTao dyn_tao; //Robot physics integrator
+  scl::CParserScl p;         //This time, we'll parse the tree from a file...
+  sutil::CSystemClock::start();
 
-    /******************************Load Robot Specification************************************/
-    //We will use a slightly more complex xml spec than the first few tutorials
-    bool flag = p.readRobotFromFile("../../specs/Puma/PumaCfg.xml","../../specs/","PumaBot",rds);
-    flag = flag && rgcm.init(rds);            //Simple way to set up dynamic tree...
-    flag = flag && dyn_tao.init(rds);         //Set up integrator object
-    flag = flag && dyn_scl.init(rds);         //Set up kinematics and dynamics object
-    flag = flag && rio.init(rds.name_,rds.dof_);
-    for(unsigned int i=0;i<rds.dof_;++i){ rio.sensors_.q_(i) = rds.rb_tree_.at(i)->joint_default_pos_; }
-    if(false == flag){ return 1; }            //Error check.
+  /******************************Load Robot Specification************************************/
+  //We will use a slightly more complex xml spec than the first few tutorials
+  bool flag = p.readRobotFromFile("./specs/Puma/PumaCfg.xml","./specs/","PumaBot",rds);
+  flag = flag && rgcm.init(rds);            //Simple way to set up dynamic tree...
+  flag = flag && dyn_tao.init(rds);         //Set up integrator object
+  flag = flag && dyn_scl.init(rds);         //Set up kinematics and dynamics object
+  flag = flag && rio.init(rds.name_,rds.dof_);
+  for(unsigned int i=0;i<rds.dof_;++i){ rio.sensors_.q_(i) = rds.rb_tree_.at(i)->joint_default_pos_; }
+  if(false == flag){ return 1; }            //Error check.
 
-    /******************************ChaiGlut Graphics************************************/
-    glutInit(&argc, argv); // We will use glut for the window pane (not the graphics).
+  /******************************ChaiGlut Graphics************************************/
+  glutInit(&argc, argv); // We will use glut for the window pane (not the graphics).
 
-    flag = p.readGraphicsFromFile("../../specs/Puma/PumaCfg.xml","PumaBotStdView",rgr);
-    flag = flag && rchai.initGraphics(&rgr);
-    flag = flag && rchai.addRobotToRender(&rds,&rio);
-    flag = flag && scl_chai_glut_interface::initializeGlutForChai(&rgr, &rchai);
-    if(false==flag) { std::cout<<"\nCouldn't initialize chai graphics\n"; return 1; }
+  flag = p.readGraphicsFromFile("./specs/Puma/PumaCfg.xml","PumaBotStdView",rgr);
+  flag = flag && rchai.initGraphics(&rgr);
+  flag = flag && rchai.addRobotToRender(&rds,&rio);
+  flag = flag && scl_chai_glut_interface::initializeGlutForChai(&rgr, &rchai);
+  if(false==flag) { std::cout<<"\nCouldn't initialize chai graphics\n"; return 1; }
 
-    /******************************Simulation************************************/
-    // Now let us integrate the model for a variety of timesteps and see energy stability
-    std::cout<<"\nIntegrating the PumaBot physics. \nPress (x) to exit at anytime.";
-    long iter = 0, n_iters=100000; double dt=0.0001;
+  /******************************Simulation************************************/
+  // Now let us integrate the model for a variety of timesteps and see energy stability
+  std::cout<<"\nIntegrating the PumaBot physics. \nPress (x) to exit at anytime.";
+  long iter = 0, n_iters=100000; double dt=0.0001;
 
-    omp_set_num_threads(2);
-    int thread_id; double tstart, tcurr; flag = false;
-    const Eigen::Vector3d hpos(0,0.0,0.0); //control position of op-point wrt. hand
-    Eigen::MatrixXd Jx;
-    Eigen::Vector3d x, x_des, x_des_tmp, x_init, dx;
-    scl::SRigidBodyDyn *rhand = rgcm.rbdyn_tree_.at("end-effector");
+  omp_set_num_threads(2);
+  int thread_id; double tstart, tcurr; flag = false;
+  const Eigen::Vector3d hpos(0,0.0,0.0); //control position of op-point wrt. hand
+  Eigen::MatrixXd J;
+  Eigen::Vector3d x, x_des, x_des_tmp, x_init, dx;
+  scl::SRigidBodyDyn *rhand = rgcm.rbdyn_tree_.at("end-effector");
 
 #pragma omp parallel private(thread_id)
+  {
+    thread_id = omp_get_thread_num();
+    if(thread_id==1) //Simulate physics and update the rio data structure..
     {
-        thread_id = omp_get_thread_num();
-        if(thread_id==1) //Simulate physics and update the rio data structure..
-        {
-            std::cout<<"\n\n***************************************************************"
-                    <<"\n Starting op space (task coordinate) controller..."
-                    <<"\n***************************************************************";
-            tstart = sutil::CSystemClock::getSysTime();
-            iter = 0;
-            while(true == scl_chai_glut_interface::CChaiGlobals::getData()->chai_glut_running)
-            {
-                tcurr = sutil::CSystemClock::getSysTime();
+      std::cout<<"\n\n***************************************************************"
+          <<"\n Starting op space (task coordinate) controller..."
+          <<"\n***************************************************************";
+      tstart = sutil::CSystemClock::getSysTime();
+      iter = 0;
+      while(true == scl_chai_glut_interface::CChaiGlobals::getData()->chai_glut_running)
+      {
+        tcurr = sutil::CSystemClock::getSysTime();
 
-                // Compute kinematic quantities
-                dyn_scl.computeTransformsForAllLinks(rgcm.rbdyn_tree_,rio.sensors_.q_);
-                dyn_scl.computeJacobianWithTransforms(Jx,*rhand,rio.sensors_.q_,hpos);
-                /*if(false == flag) {
-                    x_init = rhand->T_o_lnk_ * hpos;
-                    flag = true;
-                }*/
-                x = rhand->T_o_lnk_ * hpos;                         //Position of control point in origin frame
-                dx = Jx.block(0,0,6,rio.dof_) * rio.sensors_.dq_;
+        // Compute kinematic quantities
+        dyn_scl.computeTransformsForAllLinks(rgcm.rbdyn_tree_,rio.sensors_.q_);
+        dyn_scl.computeJacobianWithTransforms(J,*rhand,rio.sensors_.q_,hpos);
 
-                //Calculate Torques
-                Eigen::Matrix3d rDes = Eigen::Matrix3d::Identity(); //Ideally, set to rotation matrix of desired rotation
-                //rDes << 1,0,0,
-                  //      0,1,0,
-                    //    0,0,1;
-                Eigen::MatrixXd rot = rhand->T_o_lnk_.rotation();
-                Eigen::Vector3d rdes0 = rDes.col(0);
-                Eigen::Vector3d rdes1 = rDes.col(1);
-                Eigen::Vector3d rdes2 = rDes.col(2);
+        // Position
+        // -------------------------
+        Eigen::MatrixXd J_p = J.block(0, 0, 3, rio.dof_);
 
-                Eigen::Vector3d curRot0 = rot.col(0);
-                Eigen::Vector3d curRot1 = rot.col(1);
-                Eigen::Vector3d curRot2 = rot.col(2);
+        //Position of control point in origin frame
+        Eigen::Vector3d x_c = rhand->T_o_lnk_ * hpos;
+        Eigen::Vector3d x_d = {0.2, 0.4, 0.2};
+        Eigen::Vector3d dx = x_c - x_d;
+        Eigen::Vector3d v = J_p * rio.sensors_.dq_;
 
-                Eigen::Vector3d T_temp0 = rdes0.cross(curRot0);
-                Eigen::Vector3d T_temp1 = rdes1.cross(curRot1);
-                Eigen::Vector3d T_temp2 = rdes2.cross(curRot2);
+        double kp_p = 400;
+        double kv_p = 40;
+        Eigen::Vector3d F_p = -kp_p * dx - kv_p * v;
 
-                Eigen::Vector3d T_temp =(T_temp0+T_temp1+T_temp2);
+        Eigen::MatrixXd lambda_p_inv = (J_p * rgcm.M_gc_inv_ * J_p.transpose());
+        Eigen::MatrixXd lambda_p = lambda_p_inv.inverse();
 
-                // Controller : fgc = Jx' (kp * (sin(t)*.1 - (x-xinit)) + kv(0 - dx)) - kqv * dq
-                // Set the desired positions so that the hand draws a circle
-                double sin_ampl = 0.15;
-//                x_des(0) = x_init(0)+sin(tcurr-tstart)*sin_ampl;
-//                x_des(1) = x_init(1)+cos(tcurr-tstart)*sin_ampl;
-//                x_des(2) = 0;
-                x_des_tmp(0) = 0.2;
-                x_des_tmp(1) = 0;
-                x_des_tmp(2) = 0;
-                x_des = x_des_tmp; //SET X DESIRED HERE
-                Eigen::VectorXd fstar_t = (500*(x_des-x) - 50 * dx); //add 3 torques now
-                Eigen::Vector6d fstar;
-                fstar << fstar_t,
-                         T_temp;
+        Eigen::VectorXd tau_p = J_p.transpose() * (lambda_p * F_p);
 
-                dyn_scl.computeGCModel(&(rio.sensors_),&rgcm);
-                Eigen::MatrixXd Jv = Jx.block(0,0,6,rio.dof_);
-                Eigen::MatrixXd lambda_inv = (Jv * rgcm.M_gc_inv_ * Jv.transpose() );
-                Eigen::VectorXd f_op = lambda_inv.inverse() * fstar;
-                rio.actuators_.force_gc_commanded_ = Jx.block(0,0,6,rio.dof_).transpose() * f_op - 20*rgcm.M_gc_*rio.sensors_.dq_ + rgcm.force_gc_grav_;
+        // Rotation
+        // -------------------------
+        Eigen::MatrixXd J_r = J.block(3, 0, 3, rio.dof_);
 
+        Eigen::MatrixXd R_c = rhand->T_o_lnk_.rotation();
+        Eigen::Quaterniond q_d(.707, 0, -.707, 0);
+        q_d.normalize();
+        Eigen::Matrix3d R_d = q_d.toRotationMatrix();
 
-//                rio.actuators_.force_gc_commanded_ = Jx.block(0,0,6,rio.dof_).transpose() * (100*(x_des-x) - 20 * dx) - 20*rio.sensors_.dq_;
+        Eigen::Vector3d s_d1 = R_d.col(0);
+        Eigen::Vector3d s_d2 = R_d.col(1);
+        Eigen::Vector3d s_d3 = R_d.col(2);
 
-                // Integrate the dynamics
-                dyn_tao.integrate(rio,dt);
-                iter++;
-                const timespec ts = {0, 5000};//.05ms
-                nanosleep(&ts,NULL);
+        Eigen::Vector3d s_c1 = R_c.col(0);
+        Eigen::Vector3d s_c2 = R_c.col(1);
+        Eigen::Vector3d s_c3 = R_c.col(2);
 
-                //if(iter % static_cast<long>(n_iters/10) == 0)
-                //{ //std::cout<<"\nTracking error: "<<(x_des-x).transpose()<<". Norm: "<<(x_des-x).norm(); }
-            }
-            //Then terminate
-            scl_chai_glut_interface::CChaiGlobals::getData()->chai_glut_running = false;
-        }
-        else  //Read the rio data structure and updated rendererd robot..
-            while(true == scl_chai_glut_interface::CChaiGlobals::getData()->chai_glut_running)
-            { glutMainLoopEvent(); const timespec ts = {0, 15000000};/*15ms*/ nanosleep(&ts,NULL); }
+        Eigen::Vector3d dphi = -0.5 * (s_c1.cross(s_d1) + s_c2.cross(s_d2) + s_c3.cross(s_d3));
+        Eigen::Vector3d omega = J_r * rio.sensors_.dq_;
+
+        double kp_r = 2000;
+        double kv_r = 400;
+        Eigen::Vector3d F_r = -kp_r * dphi - kv_r * omega;
+
+        Eigen::MatrixXd lambda_r_inv = (J_r * rgcm.M_gc_inv_ * J_r.transpose());
+        Eigen::MatrixXd lambda_r = lambda_r_inv.inverse();
+
+        Eigen::VectorXd tau_r = J_r.transpose() * (lambda_r * F_r);
+
+        // Generalized Forces
+        // -------------------------
+        Eigen::VectorXd g_q = rgcm.force_gc_grav_;
+        Eigen::VectorXd tau = tau_p + tau_r + g_q;
+        rio.actuators_.force_gc_commanded_ = tau;
+
+        // Integrate the dynamics
+        dyn_tao.integrate(rio, dt);
+        iter++;
+        const timespec ts = {0, 5000};//.05ms
+        nanosleep(&ts,NULL);
+
+        //if(iter % static_cast<long>(n_iters/10) == 0)
+        //{ //std::cout<<"\nTracking error: "<<(x_des-x).transpose()<<". Norm: "<<(x_des-x).norm(); }
+      }
+      //Then terminate
+      scl_chai_glut_interface::CChaiGlobals::getData()->chai_glut_running = false;
     }
+    else  //Read the rio data structure and updated rendererd robot..
+      while(true == scl_chai_glut_interface::CChaiGlobals::getData()->chai_glut_running)
+      { glutMainLoopEvent(); const timespec ts = {0, 15000000};/*15ms*/ nanosleep(&ts,NULL); }
+  }
 
-    /******************************Exit Gracefully************************************/
-    std::cout<<"\n\nExecuted Successfully";
-    std::cout<<"\n**********************************\n"<<std::flush;
+  /******************************Exit Gracefully************************************/
+  std::cout<<"\n\nExecuted Successfully";
+  std::cout<<"\n**********************************\n"<<std::flush;
 
-    return 0;
+  return 0;
 }

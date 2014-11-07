@@ -37,3 +37,6 @@ iron_dome
 # Build folders
 build_dbg/
 build_rel/
+
+scl-repo
+
