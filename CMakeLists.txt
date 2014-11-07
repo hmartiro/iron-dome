@@ -15,7 +15,10 @@ SET(CMAKE_VERBOSE_MAKEFILE ON)
 ################Initialize the 3rdParty lib#################
 
 #Set scl base directory
-SET(SCL_BASE_DIR ~/Documents/scl-manips-v2.git/)
+# NOTE: For portability, create a link between ./scl-repo/ and the
+#       location of your scl library.
+# Ex: `ln -s ~/Documents/scl-manips-v2.git scl-repo`
+SET(SCL_BASE_DIR ./scl-repo/)
 
 ###(a) Scl controller
 SET(SCL_INC_DIR ${SCL_BASE_DIR}src/scl/)
@@ -53,7 +56,7 @@ SET(PROJECTILE_SRC ${IRON_DOME_SRC_DIR}/projectile/ProjectileGenerator.cpp
                    ${IRON_DOME_SRC_DIR}/projectile/ProjectileManager.cpp)
 
 #These are the source files that will be compiled.
-SET(ALL_SRC ${IRON_DOME_SRC_DIR}/robot_sim.cpp
+SET(ALL_SRC ${IRON_DOME_SRC_DIR}/iron_dome.cpp
             ${IRON_DOME_SRC_DIR}/CIronDomeApp.cpp
             ${IRON_DOME_SRC_DIR}/tasks/CTaskGcIronDome.cpp
             ${IRON_DOME_SRC_DIR}/tasks/data_structs/STaskOpIronDome.cpp
