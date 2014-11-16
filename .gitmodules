@@ -1,0 +1,3 @@
+[submodule "external/kalman-cpp"]
+	path = external/kalman-cpp
+	url = https://github.com/hmartiro/kalman-cpp
