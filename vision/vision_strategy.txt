@@ -1,0 +1,20 @@
+Strategy 1:
+- Threshold depth image to eliminate background, foreground
+- Find contours using contourFinder or cvHoughCircles
+- Use centroid of blobs as projectile position
+
+pretty straightforward for one ball, but probably need more work for multiple balls to keep track of which ball is which.
+
+Strategy 2:
+- Threshold depth image
+- Use blob tracking/detection library in openCV
+	- Bloblib, cvBlob, or cvBlobsLib
+- Again, use centroid of blobs as projectile positions
+	 
+
+Reference:
+https://www.youtube.com/watch?v=GUv-LN26SGI
+The code for this project is found in the KinectTurret_core zip (uploaded to drive). Of most interest are the BallDetector.cs, Tracker.cs, and TrackerManager.cs files in KTLib which have the ball detection, ball tracker, and projectile manager/prediction classes. Unfortunately he did it in windows, so he uses a wrapper for openCV and also interfaces with the kinect sdk, but it looks like a useful reference still.
+
+http://www.lirtex.com/robotics/fast-object-tracking-robot-computer-vision
+Example code uses color or shape based tracking of a single ball
