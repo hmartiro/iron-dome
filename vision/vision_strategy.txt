@@ -13,8 +13,13 @@ Strategy 2:
 	 
 
 Reference:
+https://www.youtube.com/watch?v=TYd3y0A5J7Y&index=3&list=PL9GpR1d2dJHD5QWh-TaQKDUaprGuiKin7
+A good example of blob detection on multiple balls using depth thresholding and contour finding
+
 https://www.youtube.com/watch?v=GUv-LN26SGI
 The code for this project is found in the KinectTurret_core zip (uploaded to drive). Of most interest are the BallDetector.cs, Tracker.cs, and TrackerManager.cs files in KTLib which have the ball detection, ball tracker, and projectile manager/prediction classes. Unfortunately he did it in windows, so he uses a wrapper for openCV and also interfaces with the kinect sdk, but it looks like a useful reference still.
 
 http://www.lirtex.com/robotics/fast-object-tracking-robot-computer-vision
 Example code uses color or shape based tracking of a single ball
+
+
