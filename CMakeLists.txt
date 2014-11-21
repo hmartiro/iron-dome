@@ -5,9 +5,9 @@ cmake_minimum_required(VERSION 2.6)
 #Name the project
 project(iron_dome)
 
-#Set the build mode to debug by default
+#Set the build mode to release by default
 #SET(CMAKE_BUILD_TYPE Debug)
-#SET(CMAKE_BUILD_TYPE Release)
+SET(CMAKE_BUILD_TYPE Release)
 
 #Make sure the generated makefile is not shortened
 SET(CMAKE_VERBOSE_MAKEFILE ON)
@@ -58,12 +58,7 @@ SET(PROJECTILE_SRC ${IRON_DOME_SRC_DIR}/projectile/ProjectileGenerator.cpp
 #These are the source files that will be compiled.
 SET(ALL_SRC ${IRON_DOME_SRC_DIR}/main.cpp
             ${IRON_DOME_SRC_DIR}/IronDomeApp.cpp
-            ${IRON_DOME_SRC_DIR}/tasks/CTaskGcIronDome.cpp
-            ${IRON_DOME_SRC_DIR}/tasks/data_structs/STaskOpIronDome.cpp
-            ${IRON_DOME_SRC_DIR}/tasks/CTaskOpIronDome.cpp
-            ${IRON_DOME_SRC_DIR}/IronDomeCallbacks.hpp
             ${IRON_DOME_SRC_DIR}/ostreamlock.cpp
-            ${SCL_INC_DIR}/robot/CRobotApp.cpp
             ${SCL_INC_DIR}/graphics/chai/CGraphicsChai.cpp 
             ${SCL_INC_DIR}/graphics/chai/ChaiGlutHandlers.cpp
             ${PROJECTILE_SRC})
