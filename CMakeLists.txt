@@ -56,12 +56,13 @@ SET(PROJECTILE_SRC ${IRON_DOME_SRC_DIR}/projectile/ProjectileGenerator.cpp
                    ${IRON_DOME_SRC_DIR}/projectile/ProjectileManager.cpp)
 
 #These are the source files that will be compiled.
-SET(ALL_SRC ${IRON_DOME_SRC_DIR}/iron_dome.cpp
-            ${IRON_DOME_SRC_DIR}/CIronDomeApp.cpp
+SET(ALL_SRC ${IRON_DOME_SRC_DIR}/main.cpp
+            ${IRON_DOME_SRC_DIR}/IronDomeApp.cpp
             ${IRON_DOME_SRC_DIR}/tasks/CTaskGcIronDome.cpp
             ${IRON_DOME_SRC_DIR}/tasks/data_structs/STaskOpIronDome.cpp
             ${IRON_DOME_SRC_DIR}/tasks/CTaskOpIronDome.cpp
             ${IRON_DOME_SRC_DIR}/IronDomeCallbacks.hpp
+            ${IRON_DOME_SRC_DIR}/ostreamlock.cpp
             ${SCL_INC_DIR}/robot/CRobotApp.cpp
             ${SCL_INC_DIR}/graphics/chai/CGraphicsChai.cpp 
             ${SCL_INC_DIR}/graphics/chai/ChaiGlutHandlers.cpp

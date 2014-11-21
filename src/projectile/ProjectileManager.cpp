@@ -51,7 +51,7 @@ void ProjectileManager::update() {
   }
 
   // Get rid of expired projectiles
-  for(auto it = projectiles.begin();it != projectiles.end();) {
+  for(auto it = projectiles.begin(); it != projectiles.end();) {
     if (Projectile::isExpired(*it)) {
       std::cout << "Removing expired projectile " << (*it).first << "\n";
       projectiles.erase(it++);
