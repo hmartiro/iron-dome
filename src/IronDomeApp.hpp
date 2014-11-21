@@ -102,7 +102,7 @@ private:
   double kp_p, kv_p, kp_r, kv_r; // Control gains
   double kv_friction;
 
-  Eigen::MatrixXd J, J_p, J_r; // Jacobians, full/pos/rot
+  Eigen::MatrixXd J; // Jacobian
   Eigen::VectorXd q, dq, ddq; // Generalized position/velocity/acceleration
 
   Eigen::Vector3d x_c, x_d, dx; // Position, current/desired/difference

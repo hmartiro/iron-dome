@@ -4,7 +4,6 @@
 
 #include <iostream>
 #include "ostreamlock.hpp"
-
 #include "IronDomeApp.hpp"
 
 using namespace std;

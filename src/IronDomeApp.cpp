@@ -18,10 +18,18 @@ using namespace std;
 static const double SIMULATION_DT = 0.0001;
 static const double GRAPHICS_DT = 0.020;
 
-static const Eigen::Vector3d START_POSITION(0.2, 0.2, -0.1);
-static const Eigen::Quaterniond START_ORIENTATION(1, 0, 0, 0);
+// Position of the operational point relative
+// to the Kuka's end-effector
+static const Eigen::Vector3d OP_POS(0, 0, 0.15);
 
-static const double JOINT_TORQUE_LIMIT = 200;
+// Starting position of the operational point
+static const Eigen::Vector3d START_POSITION(0, 0, 0);
+
+// Starting orientation of the operational point
+static const Eigen::Quaterniond START_ORIENTATION(1, 0, 1, 1);
+
+// Maximum commanded torque for every joint
+static const double JOINT_TORQUE_LIMIT = 100;
 
 // Comment this line to enable KUKA vs PUMA
 #define KUKA
@@ -36,18 +44,17 @@ static const string graphics_name("PumaBotStdView");
 static const string config_file("./specs/Puma/PumaCfg.xml");
 #endif
 
-static const double KP_P = 1000; //400;
-static const double KV_P = 150; //40
-static const double KP_R = 1000; //2000;
-static const double KV_R = 150; //400;
-
+static const double KP_P = 2000; //400;
+static const double KV_P = 250; //40
+static const double KP_R = 2000; //2000;
+static const double KV_R = 250; //400;
 
 static const double KV_FRICTION = 4;
 
 static const bool gravityCompEnabled = true;
 
 IronDomeApp::IronDomeApp() : t(0), t_sim(0), iter(0), finished(false),
-        op_pos(0,0,0), kp_p(KP_P), kv_p(KV_P), kp_r(KP_R), kv_r(KV_R), kv_friction(KV_FRICTION) {
+        op_pos(OP_POS), kp_p(KP_P), kv_p(KV_P), kp_r(KP_R), kv_r(KV_R), kv_friction(KV_FRICTION) {
 
   // Load robot spec
   bool flag = parser.readRobotFromFile(config_file,"./specs/", robot_name, rds);
@@ -125,9 +132,6 @@ void IronDomeApp::updateState() {
   dyn_scl.computeTransformsForAllLinks(rgcm.rbdyn_tree_, q);
   dyn_scl.computeJacobianWithTransforms(J, *ee, q, op_pos);
 
-  J_p = J.block(0, 0, 3, dof);
-  J_r = J.block(3, 0, 3, dof);
-
   lambda_inv = J * rgcm.M_gc_inv_ * J.transpose();
   lambda = lambda_inv.inverse();
 
@@ -136,8 +140,8 @@ void IronDomeApp::updateState() {
   x_c = ee->T_o_lnk_ * op_pos;
   R_c = ee->T_o_lnk_.rotation();
 
-  v = J_p * dq;
-  omega = J_r * dq;
+  v = J.block(0, 0, 3, dof) * dq;
+  omega = J.block(3, 0, 3, dof) * dq;
 
   double t_new = sutil::CSystemClock::getSysTime();
   double t_sim_new = sutil::CSystemClock::getSimTime();
@@ -209,17 +213,29 @@ void IronDomeApp::controlsLoop() {
   }
 }
 
+
 void IronDomeApp::graphicsLoop() {
 
-  chai3d::cMesh op_sphere;
-  chai3d::cCreateSphere(&op_sphere, 0.04);
-  chai_world->addChild(&op_sphere);
+  // Current position
+  chai3d::cMaterial x_c_mat;
+  x_c_mat.setColorf(1, 0.4, 0, 1);
+  chai3d::cMesh x_c_sphere(&x_c_mat);
+  chai3d::cCreateSphere(&x_c_sphere, 0.03);
+  chai_world->addChild(&x_c_sphere);
+
+  // Desired position
+  chai3d::cMaterial x_d_mat;
+  x_d_mat.setColorf(.6, .2, 1, 1);
+  chai3d::cMesh x_d_sphere(&x_d_mat);
+  chai3d::cCreateSphere(&x_d_sphere, 0.03);
+  chai_world->addChild(&x_d_sphere);
 
   long nanosec = static_cast<long>(GRAPHICS_DT * 1e9);
   const timespec ts = {0, nanosec};
   while(!finished) {
 
-    op_sphere.setLocalPos(x_d[0], x_d[1], x_d[2]);
+    x_c_sphere.setLocalPos(x_c[0], x_c[1], x_c[2]);
+    x_d_sphere.setLocalPos(x_d[0], x_d[1], x_d[2]);
 
     glutMainLoopEvent();
     nanosleep(&ts, NULL);
@@ -284,8 +300,7 @@ void IronDomeApp::shellLoop() {
 
     string cmd;
     cin >> cmd;
-    cout << oslock << "Command: " << cmd << endl << osunlock;
-    
+
     if((cmd == "move") || (cmd == "m")) {
 
       double x, y, z;
