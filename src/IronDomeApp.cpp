@@ -49,7 +49,7 @@ static const double KV_P = 250; //40
 static const double KP_R = 2000; //2000;
 static const double KV_R = 250; //400;
 
-static const double KV_FRICTION = 4;
+static const double KV_FRICTION = 5;
 
 static const bool gravityCompEnabled = true;
 
@@ -287,7 +287,7 @@ void IronDomeApp::shellLoop() {
   const timespec ts = {0, nanosec};
   nanosleep(&ts, NULL);
 
-  cout << oslock
+  cout << oslock << "\n"
       << "*******************************\n"
       << "* Iron Dome Interactive Shell *\n"
       << "*******************************\n"
@@ -362,13 +362,15 @@ void IronDomeApp::shellLoop() {
     } else if((cmd == "exit") || (cmd == "e")) {
       finished = true;
 
-    } else if(cmd == "") {
-      // Just continue on hitting enter
-
     } else {
       cout << oslock << "Command not understood!" << endl << osunlock;
-      string trash;
-      getline(cin, trash);
+      printHelp();
+
+      // Skip rest of the line
+      cin.ignore(10000, '\n');
     }
+
+    // Clear the error flag
+    cin.clear();
   }
 }
