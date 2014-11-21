@@ -8,7 +8,7 @@
 #include <mutex>
 #include <memory>
 #include <map>
-#include "ostreamlock.h"
+#include "ostreamlock.hpp"
 using namespace std;
 
 static mutex mapLock;
