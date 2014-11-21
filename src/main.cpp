@@ -9,6 +9,8 @@
 
 using namespace std;
 
+static const int NUM_THREADS = 4;
+
 static const int CONTROL_THREAD = 0;
 static const int GRAPHICS_THREAD = 1;
 static const int VISION_THREAD = 2;
@@ -18,7 +20,7 @@ int main(int argc, char* argv[]) {
 
   IronDomeApp app = {};
 
-  omp_set_num_threads(2);
+  omp_set_num_threads(NUM_THREADS);
   int thread_id;
 
 #pragma omp parallel private(thread_id)
@@ -37,6 +39,17 @@ int main(int argc, char* argv[]) {
       app.graphicsLoop();
       cout << oslock << "Graphics thread finished!" << endl << osunlock;
 
+    } else if (thread_id == VISION_THREAD) {
+
+      cout << oslock << "Vision thread started!" << endl << osunlock;
+      //app.visionLoop();
+      cout << oslock << "Vision thread finished!" << endl << osunlock;
+
+    } else if (thread_id == SHELL_THREAD) {
+
+      cout << oslock << "Shell thread started!" << endl << osunlock;
+      app.shellLoop();
+      cout << oslock << "Shell thread finished!" << endl << osunlock;
     }
   }
 

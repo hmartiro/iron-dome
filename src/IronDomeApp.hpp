@@ -38,11 +38,26 @@ public:
   void graphicsLoop();
 
   /**
+  * Loop to continuously get user input.
+  * Call from a separate thread.
+  */
+  void shellLoop();
+
+  /**
   * Command the robot to a desired state.
   */
-  void setDesiredPosition(Eigen::Vector3d pos);
-  void setDesiredOrientation(Eigen::Matrix3d R);
-  void setDesiredOrientation(Eigen::Quaterniond quat);
+  void setDesiredPosition(const Eigen::Vector3d& pos);
+  void setDesiredPosition(double x, double y, double z);
+  void setDesiredOrientation(const Eigen::Matrix3d& R);
+  void setDesiredOrientation(const Eigen::Quaterniond& quat);
+  void setDesiredOrientation(double x, double y, double z);
+  /**
+  * Relative movements of desired state.
+  */
+  void translate(double x, double y, double z);
+  void rotate(double x, double y, double z);
+
+  void printState();
 
 private:
 
@@ -64,13 +79,18 @@ private:
   scl::SGraphicsParsed rgr;  // Robot graphics data structure
   scl::SGcModel rgcm;        // Robot data structure with dynamic quantities
   scl::SRobotIO rio;         // I/O data structure
-  scl::CGraphicsChai rchai;  // Chai interface for rendering graphics
   scl::CDynamicsScl dyn_scl; // Robot kinematics and dynamics computation object
   scl::CDynamicsTao dyn_tao; // Robot physics integrator
   scl::CParserScl parser;    // Parser from file
 
+  scl::CGraphicsChai rchai;  // Chai interface for rendering graphics
+  scl::SGraphicsChai* graphics;
+  chai3d::cWorld* chai_world;
+
   double t; // Run-time of program
   double t_sim; // Simulated time
+  double dt_real, dt_sim; // Actual and simulated time between frames
+
   long iter; // Number of frames
   bool finished; // Flag to shut down
 
@@ -80,6 +100,7 @@ private:
   int dof; // Degrees of freedom of our robot
 
   double kp_p, kv_p, kp_r, kv_r; // Control gains
+  double kv_friction;
 
   Eigen::MatrixXd J, J_p, J_r; // Jacobians, full/pos/rot
   Eigen::VectorXd q, dq, ddq; // Generalized position/velocity/acceleration
@@ -91,10 +112,12 @@ private:
   Eigen::Vector3d dphi; // Difference in end-effector orientations
   Eigen::Vector3d omega; // Angular velocity
 
-  Eigen::Vector3d F_p, F_r;               // Task space forces, pos/rot
+  Eigen::Vector3d F_p, F_r;          // Task space forces, pos/rot
+  Eigen::Vector6d F;
+  Eigen::MatrixXd lambda, lambda_inv; // Generalized mass matrix and inverse
   Eigen::MatrixXd lambda_p_inv, lambda_p; // Generalized mass, pos/rot
   Eigen::MatrixXd lambda_r_inv, lambda_r; // Generalized inverse mass, pos/rot
-  Eigen::VectorXd tau_p, tau_r;           // Generalized forces, pos/rot
+  Eigen::VectorXd tau_p, tau_r; // Generalized forces, pos/rot
 
   Eigen::VectorXd g_q; // Generalized gravity force
   Eigen::VectorXd tau; // Commanded generalized force
