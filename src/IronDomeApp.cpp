@@ -282,17 +282,50 @@ void IronDomeApp::graphicsLoop() {
   chai_world->addChild(&collision_sphere);
   collision_sphere.setLocalPos(-.0, -.0, -.54);
 
+  // Projectiles
+  map<int, chai3d::cMesh> projectile_spheres;
+  map<int, chai3d::cMesh> projectile_spheres_m;
+  chai3d::cMaterial projectile_mat;
+  projectile_mat.setYellow();
+  chai3d::cMaterial projectile_mat_m;
+  projectile_mat_m.setGreen();
+
   long nanosec = static_cast<long>(GRAPHICS_DT * 1e9);
   const timespec ts = {0, nanosec};
   while(!finished) {
 
+    // Draw control points
     x_c_sphere.setLocalPos(x_c[0], x_c[1], x_c[2]);
     x_d_sphere.setLocalPos(x_d[0], x_d[1], x_d[2]);
+
+    // Draw projectiles
+    for(const pair<int, Projectile>& p : projectile_manager.getActiveProjectiles()) {
+      const Projectile& proj = p.second;
+
+      // Create a new sphere if needed
+      if(projectile_spheres.find(proj.id) == projectile_spheres.end()) {
+        projectile_spheres[proj.id] = chai3d::cMesh(&projectile_mat);
+        projectile_spheres_m[proj.id] = chai3d::cMesh(&projectile_mat_m);
+        chai3d::cCreateSphere(&projectile_spheres[proj.id], 0.04);
+        chai3d::cCreateSphere(&projectile_spheres_m[proj.id], 0.04);
+        chai_world->addChild(&projectile_spheres[proj.id]);
+        chai_world->addChild(&projectile_spheres_m[proj.id]);
+      }
+
+      // Set sphere position
+      double now = sutil::CSystemClock::getSysTime();
+      Eigen::Vector3d pos = proj.getPosition(now);
+      projectile_spheres[proj.id].setLocalPos(pos(0), pos(1), pos(2));
+      projectile_spheres_m[proj.id].setLocalPos(proj.pObs(0), proj.pObs(1), proj.pObs(2));
+    }
+
+    // TODO remove expired
 
     glutMainLoopEvent();
     nanosleep(&ts, NULL);
 
-    // finished = !scl_chai_glut_interface::CChaiGlobals::getData()->chai_glut_running;
+    if(!scl_chai_glut_interface::CChaiGlobals::getData()->chai_glut_running)
+      finished = true;
   }
 }
 

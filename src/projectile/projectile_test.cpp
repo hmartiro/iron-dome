@@ -22,7 +22,7 @@ int main(int argc, char* argv[]) {
 
   // Test timestep and end time
   double dt = 1.0 / 30.0;
-  double tEnd = 15;
+  double tEnd = 1e10;
 
   ProjectileGenerator pg = {t_avg, v_avg, theta_avg};
   timespec ts = {0, static_cast<int>(dt * 1e9)};
@@ -40,6 +40,7 @@ int main(int argc, char* argv[]) {
 
   // Loop through, generating projectiles
   double t = sutil::CSystemClock::getSysTime();
+  double t0 = 0;
   while(t < tEnd) {
 
     t = sutil::CSystemClock::getSysTime();
@@ -49,20 +50,14 @@ int main(int argc, char* argv[]) {
 
       const SimProjectile& proj = p.second;
       zmqpp::message message;
-//      stringstream ss;
-//      ss << " hello: ";// << proj.p.transpose();
-//      cout << "Message: " << ss << endl;
-//              << proj.p(0) << " "
-//              << proj.p(1) << " "
-//              << proj.p(2);
-      message << to_string(proj.id) + " " + to_string(t) + " "
+      message << to_string(proj.id) + " " + to_string(t-t0) + " "
                + to_string(proj.p(0)) + " "
                + to_string(proj.p(1)) + " "
                + to_string(proj.p(2));
-      
+
       socket.send(message);
 
-      cout << "Projectile " << proj.id << ", t = " << t << ", position = ("
+      cout << "Projectile " << proj.id << ", t = " << t-t0 << ", position = ("
            << proj.p(0) << ", "
            << proj.p(1)  << ", "
            << proj.p(2)  << ")" << endl;

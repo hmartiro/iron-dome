@@ -20,6 +20,10 @@ Projectile::Projectile(int id, const ProjectileMeasurement& obs) : id(id) {
 
   double dt = 1.0/30; // Time step
 
+  // Time offset
+  double now = sutil::CSystemClock::getSysTime();
+  tOffset = now - obs.t;
+
   Eigen::MatrixXd A(n, n); // System dynamics matrix
   Eigen::MatrixXd C(m, n); // Output matrix
   Eigen::MatrixXd Q(n, n); // Process noise covariance
@@ -41,12 +45,13 @@ Projectile::Projectile(int id, const ProjectileMeasurement& obs) : id(id) {
   estimatorZ = KalmanFilter(dt, A, C, Q, R, P);
 
   // Initialize using our first measurement
+  t = obs.t + tOffset;
   x = Eigen::Vector3d(obs.x, 0, 0);
   y = Eigen::Vector3d(obs.y, 0, 0);
   z = Eigen::Vector3d(obs.z, 0, GRAVITY);
-  estimatorX.init(obs.t, x);
-  estimatorY.init(obs.t, y);
-  estimatorZ.init(obs.t, z);
+  estimatorX.init(t, x);
+  estimatorY.init(t, y);
+  estimatorZ.init(t, z);
 
   // Set our projectile's state
   p << x[0], y[0], z[0];
@@ -56,14 +61,25 @@ Projectile::Projectile(int id, const ProjectileMeasurement& obs) : id(id) {
 
 void Projectile::addObservation(const ProjectileMeasurement& obs) {
 
+  // Measurement timestamp, in our system time
+  double tNew = obs.t + tOffset;
+
+  // Time that has passed since last measurement
+  double dt = tNew - t;
+  cout << oslock << "Time between measurements: " << dt << endl << osunlock;
+
+  // A matrix using this dt
+  Eigen::MatrixXd A(n, n);
+  A << 1, dt, 0, 0, 1, dt, 0, 0, 1;
+
   // Update the estimators
   Eigen::VectorXd p_x(m), p_y(m), p_z(m);
   p_x << obs.x;
   p_y << obs.y;
   p_z << obs.z;
-  estimatorX.update(p_x);
-  estimatorY.update(p_y);
-  estimatorZ.update(p_z);
+  estimatorX.update(p_x, dt, A);
+  estimatorY.update(p_y, dt, A);
+  estimatorZ.update(p_z, dt, A);
 
   // Get the time, make sure they match up
   t = estimatorX.time();
@@ -79,17 +95,20 @@ void Projectile::addObservation(const ProjectileMeasurement& obs) {
   p << x[0], y[0], z[0];
   v << x[1], y[1], z[1];
   a << x[2], y[2], z[2];
+
+  // Save the last observation
+  pObs << obs.x, obs.y, obs.z;
 }
 
-Eigen::Vector3d Projectile::getPosition(double t1) {
+Eigen::Vector3d Projectile::getPosition(double t1) const {
   return p + v*(t1-t) + 0.5 * a*(t1-t)*(t1-t);
 }
 
-Eigen::Vector3d Projectile::getVelocity(double t1) {
+Eigen::Vector3d Projectile::getVelocity(double t1) const {
   return v + a*(t1-t);
 }
 
-Eigen::Vector3d Projectile::getAcceleration(double t1) {
+Eigen::Vector3d Projectile::getAcceleration(double t1) const {
   return a;
 }
 

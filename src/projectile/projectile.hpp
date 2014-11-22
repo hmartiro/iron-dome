@@ -42,24 +42,32 @@ public:
   /**
   * Read the projectile's estimated state at time t.
   */
-  Eigen::Vector3d getPosition(double t);
-  Eigen::Vector3d getVelocity(double t);
-  Eigen::Vector3d getAcceleration(double t);
+  Eigen::Vector3d getPosition(double t) const;
+  Eigen::Vector3d getVelocity(double t) const;
+  Eigen::Vector3d getAcceleration(double t) const;
 
   // ID number
   int id;
 
+  // Offset between this program's time and the reporting
+  // program's time (t0 - tObs0)
+  double tOffset;
+
+  // Time of last estimate
+  double t;
+
   // Estimated state, with pos/vel/acc vectors of x, y, z
   // TODO watch out for thread-unsafe access here
   Eigen::Vector3d p, v, a;
+
+  // Last measurement
+  Eigen::Vector3d pObs;
 
 private:
 
   const static int n = 3; // Number of states
   const static int m = 1; // Number of measurements
 
-  // Time of current estimation
-  double t;
 
   // Estimated state, with x, y, z vectors of pos/vel/acc
   Eigen::Vector3d x, y, z;

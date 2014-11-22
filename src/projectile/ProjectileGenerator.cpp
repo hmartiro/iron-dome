@@ -22,7 +22,7 @@ static const double p0_stddev = 0.3;
 static const double v0_stddev = 0.2;
 
 // Simulated measurement noise
-static const double pObserved_stddev = 0.00;
+static const double pObserved_stddev = 0.05;
 
 // ------------------------------
 // SimProjectile
