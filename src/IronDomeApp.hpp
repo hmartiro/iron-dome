@@ -21,6 +21,8 @@
 
 #include <GL/freeglut.h>
 
+#include "projectile/projectile.hpp"
+
 class IronDomeApp {
 
 public:
@@ -138,4 +140,7 @@ private:
 
   Eigen::VectorXd g_q; // Generalized gravity force
   Eigen::VectorXd tau; // Commanded generalized force
+
+  // Class for managing the current state of projectiles
+  ProjectileManager projectile_manager;
 };

@@ -370,6 +370,8 @@ void IronDomeApp::visionLoop() {
          << " at t = " << time << ": "
          << "(" << x << ", " << y << ", " << z << ")"
          << endl << osunlock;
+
+    projectile_manager.addObservation(id, time, x, y, z);
   }
 }
 

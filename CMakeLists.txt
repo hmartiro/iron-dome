@@ -39,9 +39,13 @@ SET(SUTIL_INC_DIR ${SCL_BASE_DIR}3rdparty/sUtil/src/)
 ### (e) scl_tinyxml (parser)
 SET(TIXML_INC_DIR ${SCL_BASE_DIR}3rdparty/tinyxml)
 
+### (f) kalman-cpp (state estimator)
+SET(KALMAN_INC_DIR ./external/kalman-cpp)
+
 ################Initialize the executable#################
 #Set the include directories
-INCLUDE_DIRECTORIES(${SCL_INC_DIR} ${SCL_INC_DIR_BASE} ${TAO_INC_DIR} ${EIGEN_INC_DIR} ${CHAI_INC_DIR} ${SUTIL_INC_DIR} ${TIXML_INC_DIR}) 
+INCLUDE_DIRECTORIES(${SCL_INC_DIR} ${SCL_INC_DIR_BASE} ${TAO_INC_DIR} ${EIGEN_INC_DIR}
+                    ${CHAI_INC_DIR} ${SUTIL_INC_DIR} ${TIXML_INC_DIR} ${KALMAN_INC_DIR})
 
 #Set the compilation flags
 SET(CMAKE_CXX_FLAGS "-Wall -fPIC -fopenmp  -Wno-unused-local-typedefs")
@@ -51,17 +55,17 @@ SET(CMAKE_CXX_FLAGS_RELEASE "-O3 -std=c++0x -DGRAPHICS_ON -DW_THREADING_ON -DNDE
 #Set all the sources required for the library
 SET(IRON_DOME_SRC_DIR ./src)
 
-SET(PROJECTILE_SRC ${IRON_DOME_SRC_DIR}/projectile/ProjectileGenerator.cpp
-                   ${IRON_DOME_SRC_DIR}/projectile/ProjectileEstimator.cpp
-                   ${IRON_DOME_SRC_DIR}/projectile/ProjectileManager.cpp)
+SET(KALMAN_SRC ./external/kalman-cpp/kalman.cpp)
 
 #These are the source files that will be compiled.
 SET(ALL_SRC ${IRON_DOME_SRC_DIR}/main.cpp
             ${IRON_DOME_SRC_DIR}/IronDomeApp.cpp
             ${IRON_DOME_SRC_DIR}/ostreamlock.cpp
+            ${IRON_DOME_SRC_DIR}/projectile/projectile.cpp
             ${SCL_INC_DIR}/graphics/chai/CGraphicsChai.cpp 
             ${SCL_INC_DIR}/graphics/chai/ChaiGlutHandlers.cpp
-            ${PROJECTILE_SRC})
+            ${PROJECTILE_SRC}
+            ${KALMAN_SRC})
 
 #Set the executable to be built and its required linked libraries (the ones in the /usr/lib dir)
 add_executable(iron_dome ${ALL_SRC})
@@ -98,4 +102,4 @@ target_link_libraries(iron_dome ${CHAI_LIBRARY})
 ###############CODE TO FIND AND LINK REMANING LIBS ######################
 target_link_libraries(iron_dome gomp GL GLU GLEW glut ncurses rt dl zmq zmqpp)
 
-add_executable(projectile_test ${IRON_DOME_SRC_DIR}/projectile/projectile_test.cpp ${PROJECTILE_SRC})
+#add_executable(projectile_test ${IRON_DOME_SRC_DIR}/projectile/projectile_test.cpp ${PROJECTILE_SRC})
