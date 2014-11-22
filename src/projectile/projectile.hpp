@@ -50,6 +50,7 @@ public:
   int id;
 
   // Estimated state, with pos/vel/acc vectors of x, y, z
+  // TODO watch out for thread-unsafe access here
   Eigen::Vector3d p, v, a;
 
 private:

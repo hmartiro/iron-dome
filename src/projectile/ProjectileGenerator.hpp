@@ -4,22 +4,23 @@
 
 #pragma once
 
-#include "Eigen/Dense"
-#include "ProjectileEstimator.hpp"
 #include <random>
+#include <map>
 
-class Projectile {
+#include <Eigen/Dense>
+
+class SimProjectile {
 
 public:
 
-  Projectile() {};
-  Projectile(int id, double t0,
+  SimProjectile() {};
+  SimProjectile(int id, double t0,
       const Eigen::Vector3d& p0, const Eigen::Vector3d& v0, const Eigen::Vector3d& a0);
 
   /**
   * Is this projectile expired?
   */
-  static bool isExpired(const std::pair<int, Projectile>& p);
+  bool isExpired();
 
   // ID number
   int id;
@@ -32,13 +33,8 @@ public:
   Eigen::Vector3d v0;
   Eigen::Vector3d a0;
 
-  // Current state
+  // Current measured position
   Eigen::Vector3d p;
-  Eigen::Vector3d v;
-  Eigen::Vector3d a;
-
-  // State estimator
-  ProjectileEstimator estimator;
 };
 
 /**
@@ -65,24 +61,41 @@ public:
   /**
   * Return a Projectile with launch time and initial position/velocity.
   */
-  Projectile getNextProjectile();
+  SimProjectile getNextProjectile();
 
   /**
   * Generate a new position observation for the given projectile, based
   * on its initial conditions and the current time. Add gaussian noise
   * to simulate measurement error.
   */
-  Eigen::Vector3d observePosition(Projectile& proj);
+  Eigen::Vector3d observePosition(const SimProjectile& proj);
+
+  void update();
+
+  /**
+  * Return a map of the currently seen projectiles.
+  */
+  const std::map<int, SimProjectile>& getProjectiles();
 
 private:
 
+  // Number of projectiles generated
   int count;
 
+  // Statistical parameters
   double t_avg;
   double v_avg;
   double theta_avg;
 
+  // Statistical generators
   std::default_random_engine generator;
   std::exponential_distribution<double> exp_dist;
   std::normal_distribution<double> normal_dist;
+
+  // List of active projectiles
+  std::map<int, SimProjectile> projectiles;
+
+  // Next projectile to be generated
+  SimProjectile pendingProjectile;
+  bool pendingProjectileExists;
 };

@@ -102,4 +102,9 @@ target_link_libraries(iron_dome ${CHAI_LIBRARY})
 ###############CODE TO FIND AND LINK REMANING LIBS ######################
 target_link_libraries(iron_dome gomp GL GLU GLEW glut ncurses rt dl zmq zmqpp)
 
-#add_executable(projectile_test ${IRON_DOME_SRC_DIR}/projectile/projectile_test.cpp ${PROJECTILE_SRC})
+###############PROJECTILE GENERATION PROGRAM ############################
+
+SET(PROJECTILE_GEN_SRC ${IRON_DOME_SRC_DIR}/projectile/projectile_test.cpp
+                       ${IRON_DOME_SRC_DIR}/projectile/ProjectileGenerator.cpp)
+
+add_executable(projectile_test ${PROJECTILE_GEN_SRC})

@@ -3,10 +3,13 @@
 */
 
 #include <iostream>
+#include <iomanip>
+#include <zmqpp/zmqpp.hpp>
+#include <sutil/CSystemClock.hpp>
 
-#include "ProjectileManager.hpp"
-#include "ProjectileEstimator.hpp"
 #include "ProjectileGenerator.hpp"
+
+using namespace std;
 
 int main(int argc, char* argv[]) {
 
@@ -20,18 +23,28 @@ int main(int argc, char* argv[]) {
   double tEnd = 15;
 
   ProjectileGenerator pg = {t_avg, v_avg, theta_avg};
-  ProjectileManager pm = {pg};
-  pm.init();
-
   timespec ts = {0, static_cast<int>(dt * 1e9)};
 
-  // Loop through the ProjectileManager
-  pm.init();
-  for(double t = 0; t < tEnd; t += dt) {
-    pm.update();
+  // Set print format
+  cout << fixed << setprecision(3);
+
+  // Loop through, generating projectiles
+  double t = sutil::CSystemClock::getSysTime();
+  while(t < tEnd) {
+
+    t = sutil::CSystemClock::getSysTime();
+    pg.update();
+
+    for(const pair<int, SimProjectile>& p : pg.getProjectiles()) {
+      const SimProjectile& proj = p.second;
+      cout << "Projectile " << proj.id << ", t = " << t << ", position = ("
+           << proj.p(0) << ", "
+           << proj.p(1)  << ", "
+           << proj.p(2)  << ")" << endl;
+    }
+
     nanosleep(&ts, NULL);
   }
-  pm.close();
 
   return 0;
 }
