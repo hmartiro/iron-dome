@@ -108,3 +108,5 @@ SET(PROJECTILE_GEN_SRC ${IRON_DOME_SRC_DIR}/projectile/projectile_test.cpp
                        ${IRON_DOME_SRC_DIR}/projectile/ProjectileGenerator.cpp)
 
 add_executable(projectile_test ${PROJECTILE_GEN_SRC})
+
+target_link_libraries(projectile_test zmq zmqpp)
