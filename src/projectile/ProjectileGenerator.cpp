@@ -33,7 +33,7 @@ SimProjectile::SimProjectile(int id, double t0,
   id(id), t0(t0), p0(p0), v0(v0), a0(a0) {}
 
 bool SimProjectile::isExpired() {
-  return p[0] < -1;
+  return p[0] < 0.5;
 }
 
 // ------------------------------

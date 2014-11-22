@@ -27,7 +27,7 @@ SET(TAO_INC_DIR ${SCL_INC_DIR}dynamics/tao/)
 ADD_DEFINITIONS(-DTIXML_USE_STL)
 
 ###(b) Eigen
-SET(EIGEN_INC_DIR ${SCL_BASE_DIR}3rdparty/eigen/)
+SET(EIGEN_INC_DIR /usr/include/eigen3/)
 
 ###(c) Chai3D scenegraph
 SET(CHAI_INC_DIR ${SCL_BASE_DIR}3rdparty/chai3d-3.0/chai3d/)
@@ -62,6 +62,7 @@ SET(ALL_SRC ${IRON_DOME_SRC_DIR}/main.cpp
             ${IRON_DOME_SRC_DIR}/IronDomeApp.cpp
             ${IRON_DOME_SRC_DIR}/ostreamlock.cpp
             ${IRON_DOME_SRC_DIR}/projectile/projectile.cpp
+            ${IRON_DOME_SRC_DIR}/lowestRealRoot.cpp
             ${SCL_INC_DIR}/graphics/chai/CGraphicsChai.cpp 
             ${SCL_INC_DIR}/graphics/chai/ChaiGlutHandlers.cpp
             ${PROJECTILE_SRC}

@@ -16,7 +16,7 @@
     double y0 = -1.0;
     double z0 = -0.5;
 
-    coeff[4] = 9.81*9.81/4;
+    coeff[4] = g*g/4;
     coeff[3] = g*vz;
     coeff[2] = g*z0+vx*vx+vy*vy+vz*vz;
     coeff[1] = 2*(vx*x0+vy*y0+vz*z0);

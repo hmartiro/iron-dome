@@ -272,23 +272,32 @@ void IronDomeApp::graphicsLoop() {
   chai_world->addChild(&x_d_sphere);
 
   // Collision sphere
+  Eigen::Vector3d collision_sphere_origin(0, 0, -0.54);
+  double collision_sphere_radius = 0.8;
   chai3d::cMaterial collision_sphere_mat;
   collision_sphere_mat.setColorf(1, 1, 1, 0.2);
   collision_sphere_mat.setTransparencyLevel(0.5);
   chai3d::cMesh collision_sphere(&collision_sphere_mat);
   collision_sphere.setUseTransparency(true);
   collision_sphere.setTransparencyLevel(0.1);
-  chai3d::cCreateSphere(&collision_sphere, 0.8);
+  chai3d::cCreateSphere(&collision_sphere, collision_sphere_radius);
   chai_world->addChild(&collision_sphere);
-  collision_sphere.setLocalPos(-.0, -.0, -.54);
+  collision_sphere.setLocalPos(
+      collision_sphere_origin(0),
+      collision_sphere_origin(1),
+      collision_sphere_origin(2)
+  );
 
   // Projectiles
   map<int, chai3d::cMesh> projectile_spheres;
   map<int, chai3d::cMesh> projectile_spheres_m;
+  map<int, chai3d::cMesh> projectile_spheres_c;
   chai3d::cMaterial projectile_mat;
   projectile_mat.setYellow();
   chai3d::cMaterial projectile_mat_m;
   projectile_mat_m.setGreen();
+  chai3d::cMaterial projectile_mat_c;
+  projectile_mat_c.setPurple();
 
   long nanosec = static_cast<long>(GRAPHICS_DT * 1e9);
   const timespec ts = {0, nanosec};
@@ -304,12 +313,18 @@ void IronDomeApp::graphicsLoop() {
 
       // Create a new sphere if needed
       if(projectile_spheres.find(proj.id) == projectile_spheres.end()) {
+
         projectile_spheres[proj.id] = chai3d::cMesh(&projectile_mat);
-        projectile_spheres_m[proj.id] = chai3d::cMesh(&projectile_mat_m);
         chai3d::cCreateSphere(&projectile_spheres[proj.id], 0.04);
-        chai3d::cCreateSphere(&projectile_spheres_m[proj.id], 0.04);
         chai_world->addChild(&projectile_spheres[proj.id]);
+
+        projectile_spheres_m[proj.id] = chai3d::cMesh(&projectile_mat_m);
+        chai3d::cCreateSphere(&projectile_spheres_m[proj.id], 0.04);
         chai_world->addChild(&projectile_spheres_m[proj.id]);
+
+        projectile_spheres_c[proj.id] = chai3d::cMesh(&projectile_mat_c);
+        chai3d::cCreateSphere(&projectile_spheres_c[proj.id], 0.04);
+        chai_world->addChild(&projectile_spheres_c[proj.id]);
       }
 
       // Set sphere position
@@ -317,9 +332,28 @@ void IronDomeApp::graphicsLoop() {
       Eigen::Vector3d pos = proj.getPosition(now);
       projectile_spheres[proj.id].setLocalPos(pos(0), pos(1), pos(2));
       projectile_spheres_m[proj.id].setLocalPos(proj.pObs(0), proj.pObs(1), proj.pObs(2));
+
+      double tIntersect = proj.getIntersectionTime(collision_sphere_origin, collision_sphere_radius);
+      if(tIntersect >= 0) {
+        Eigen::Vector3d collision_pos = proj.getPosition(tIntersect);
+        projectile_spheres_c[proj.id].setLocalPos(collision_pos(0), collision_pos(1), collision_pos(2));
+//        cout << oslock << "Projectile " << proj.id << " will collide with sphere at t = "
+//             << tIntersect << " and position = " << collision_pos.transpose() << endl << osunlock;
+      }
     }
 
     // TODO remove expired
+    // Get rid of expired projectiles
+    // Special method of iteration because we are deleting
+    auto projectiles = projectile_manager.getActiveProjectiles();
+    for(auto it = projectiles.begin(); it != projectiles.end();) {
+      if ((*it).second.p(0) < -1) {
+        std::cout << "Removing expired projectile " << (*it).first << "\n";
+        projectiles.erase(it++);
+      } else {
+        ++it;
+      }
+    }
 
     glutMainLoopEvent();
     nanosleep(&ts, NULL);
@@ -398,11 +432,6 @@ void IronDomeApp::visionLoop() {
            << msg << endl << osunlock;
       continue;
     }
-
-    cout << oslock << "Measurement for projectile " << id
-         << " at t = " << time << ": "
-         << "(" << x << ", " << y << ", " << z << ")"
-         << endl << osunlock;
 
     projectile_manager.addObservation(id, time, x, y, z);
   }

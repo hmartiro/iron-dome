@@ -29,6 +29,8 @@ public:
 */
 class Projectile {
 
+friend class ProjectileManager;
+
 public:
 
   Projectile(int id, const ProjectileMeasurement& m0);
@@ -45,6 +47,13 @@ public:
   Eigen::Vector3d getPosition(double t) const;
   Eigen::Vector3d getVelocity(double t) const;
   Eigen::Vector3d getAcceleration(double t) const;
+
+  /**
+  * Get the time the projectile will first intersect with a
+  * sphere at the given origin and radius, or -1 if it will
+  * not happen.
+  */
+  double getIntersectionTime(const Eigen::Vector3d& origin, double radius) const;
 
   // ID number
   int id;
@@ -63,17 +72,24 @@ public:
   // Last measurement
   Eigen::Vector3d pObs;
 
+  bool isExpired;
+
 private:
 
   const static int n = 3; // Number of states
   const static int m = 1; // Number of measurements
-
 
   // Estimated state, with x, y, z vectors of pos/vel/acc
   Eigen::Vector3d x, y, z;
 
   // State estimators
   KalmanFilter estimatorX, estimatorY, estimatorZ;
+
+  // Whether we have enough data to consider this projectile 'converged'
+  bool converged;
+
+  // How many observations we've made
+  int observations;
 };
 
 // ----------------------------
@@ -86,11 +102,6 @@ class ProjectileManager {
 public:
 
   ProjectileManager();
-
-  /**
-  * Update active projectiles.
-  */
-  void update();
 
   /**
   * Add a measurement to the given projectile ID, or register
@@ -107,4 +118,5 @@ private:
 
   // List of active projectiles
   std::map<int, Projectile> projectiles;
+  std::map<int, Projectile> converged_projectiles;
 };

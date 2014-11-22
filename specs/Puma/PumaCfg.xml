@@ -26,10 +26,10 @@
         <!-- These flags can control the simulation's default behavior. -->
         <flag_gc_damping>false</flag_gc_damping>
         <flag_gc_limits>false</flag_gc_limits> <!-- Apply gc position limits (joint limits) -->
-        <flag_actuator_force_limits>true</flag_actuator_force_limits>
-        <flag_actuator_vel_limits>true</flag_actuator_vel_limits>
-        <flag_actuator_acc_limits>true</flag_actuator_acc_limits>
-        <flag_controller_on>true</flag_controller_on> <!-- Controller enabled at the start -->
+        <flag_actuator_force_limits>false</flag_actuator_force_limits>
+        <flag_actuator_vel_limits>false</flag_actuator_vel_limits>
+        <flag_actuator_acc_limits>false</flag_actuator_acc_limits>
+        <flag_controller_on>false</flag_controller_on> <!-- Controller enabled at the start -->
         <flag_logging_on>false</flag_logging_on>
         <flag_wireframe_on>false</flag_wireframe_on>
         <option_axis_frame_size>0.0</option_axis_frame_size> <!-- All options are optional -->

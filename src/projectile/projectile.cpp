@@ -7,8 +7,12 @@
 #include <ostreamlock.h>
 
 #include "projectile.hpp"
+#include "../lowestRealRoot.hpp"
 
 static const double GRAVITY = -9.81;
+
+// How many observations until we deem the trajectory converged
+static const int CONVERGE_LIMIT = 4;
 
 using namespace std;
 
@@ -16,7 +20,8 @@ using namespace std;
 // Projectile
 // ----------------------------
 
-Projectile::Projectile(int id, const ProjectileMeasurement& obs) : id(id) {
+Projectile::Projectile(int id, const ProjectileMeasurement& obs) :
+    id(id), isExpired(false), converged(false), observations(0) {
 
   double dt = 1.0/30; // Time step
 
@@ -57,6 +62,8 @@ Projectile::Projectile(int id, const ProjectileMeasurement& obs) : id(id) {
   p << x[0], y[0], z[0];
   v << x[1], y[1], z[1];
   a << x[2], y[2], z[2];
+
+  observations += 1;
 }
 
 void Projectile::addObservation(const ProjectileMeasurement& obs) {
@@ -66,7 +73,7 @@ void Projectile::addObservation(const ProjectileMeasurement& obs) {
 
   // Time that has passed since last measurement
   double dt = tNew - t;
-  cout << oslock << "Time between measurements: " << dt << endl << osunlock;
+  //cout << oslock << "Time between measurements: " << dt << endl << osunlock;
 
   // A matrix using this dt
   Eigen::MatrixXd A(n, n);
@@ -98,6 +105,10 @@ void Projectile::addObservation(const ProjectileMeasurement& obs) {
 
   // Save the last observation
   pObs << obs.x, obs.y, obs.z;
+
+  observations += 1;
+  if(observations >= CONVERGE_LIMIT) converged = true;
+  //cout << "Observations for " << id << ": " << observations << endl;
 }
 
 Eigen::Vector3d Projectile::getPosition(double t1) const {
@@ -110,6 +121,33 @@ Eigen::Vector3d Projectile::getVelocity(double t1) const {
 
 Eigen::Vector3d Projectile::getAcceleration(double t1) const {
   return a;
+}
+
+double Projectile::getIntersectionTime(const Eigen::Vector3d& origin, double radius) const {
+
+  // Polynomial coefficients
+  Eigen::VectorXd coeff(5);
+
+  double x0 = p(0) - origin(0);
+  double y0 = p(1) - origin(1);
+  double z0 = p(2) - origin(2);
+  double vx = v(0);
+  double vy = v(1);
+  double vz = v(2);
+  double g = a(2);
+  double R = radius;
+
+  coeff[4] = g*g/4;
+  coeff[3] = g*vz;
+  coeff[2] = g*z0+vx*vx+vy*vy+vz*vz;
+  coeff[1] = 2*(vx*x0+vy*y0+vz*z0);
+  coeff[0] = x0*x0+y0*y0+z0*z0-R*R;
+
+  double tIntersect = lowestRealRoot(coeff);
+
+  if(tIntersect < 0) return -1;
+
+  return tIntersect + t;
 }
 
 // ----------------------------
@@ -130,47 +168,21 @@ void ProjectileManager::addObservation(int id, double t, double x, double y, dou
     projectiles[id].addObservation(obs);
   }
 
-  cout << oslock
-       << "Updated projectile " << id << " at t = " << t << ":\n"
-       << "p = " << projectiles[id].p.transpose() << "\n"
-       << "v = " << projectiles[id].v.transpose() << "\n"
-       << "a = " << projectiles[id].a.transpose() << "\n"
-       << osunlock;
-}
+  if(projectiles[id].converged) {
+    converged_projectiles[id] = projectiles[id];
+  }
 
-void ProjectileManager::update() {
+  // TODO handle expiration
 
-  //double now = sutil::CSystemClock::getSysTime();
-
-//  // Queue up the next pending projectile
-//  if(!pendingProjectileExists) {
-//    pendingProjectile = pg.getNextProjectile();
-//    pendingProjectileExists = true;
-//  }
-
-//  // Activate the pending projectile when the time comes
-//  if(now >= pendingProjectile.t0) {
-//    projectiles[pendingProjectile.id] = pendingProjectile;
-//    pendingProjectileExists = false;
-//  }
-
-//  // Update the position of each projectile
-//  for(std::pair<const int, Projectile>& pair : projectiles) {
-//    pair.second.p = pg.observePosition(pair.second);
-//  }
-
-//  // Get rid of expired projectiles
-//  for(auto it = projectiles.begin(); it != projectiles.end();) {
-//    if (Projectile::isExpired(*it)) {
-//      std::cout << "Removing expired projectile " << (*it).first << "\n";
-//      projectiles.erase(it++);
-//    } else {
-//      ++it;
-//    }
-//  }
-
+//  cout << oslock
+//       << "Updated projectile " << id << " at t = " << t << ":\n"
+//       << "p = " << projectiles[id].p.transpose() << "\n"
+//       << "v = " << projectiles[id].v.transpose() << "\n"
+//       << "a = " << projectiles[id].a.transpose() << "\n"
+//       << osunlock;
 }
 
 const std::map<int, Projectile>& ProjectileManager::getActiveProjectiles() {
-  return projectiles;
+
+  return converged_projectiles;
 }
