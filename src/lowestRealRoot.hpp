@@ -21,6 +21,6 @@
     coeff[2] = g*z0+vx*vx+vy*vy+vz*vz;
     coeff[1] = 2*(vx*x0+vy*y0+vz*z0);
     coeff[0] = x0*x0+y0*y0+z0*z0-R*R;
-    SolvePoly(coeff)
+    SolvePoly(&coeff)
 */
-double SolvePoly(Eigen::VectorXd coeffs);
+double lowestRealRoot(const Eigen::VectorXd &coeffs);
