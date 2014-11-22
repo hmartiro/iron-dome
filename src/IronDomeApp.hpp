@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <mutex>
 #include <Eigen/Dense>
 
 #include <scl/DataTypes.hpp>
@@ -38,6 +39,13 @@ public:
   void graphicsLoop();
 
   /**
+  * Loop to continuously receive projectile position measurements
+  * and update trajectory estimates of them.
+  * Call from a separate thread.
+  */
+  void visionLoop();
+
+  /**
   * Loop to continuously get user input.
   * Call from a separate thread.
   */
@@ -51,11 +59,18 @@ public:
   void setDesiredOrientation(const Eigen::Matrix3d& R);
   void setDesiredOrientation(const Eigen::Quaterniond& quat);
   void setDesiredOrientation(double x, double y, double z);
+
   /**
   * Relative movements of desired state.
   */
   void translate(double x, double y, double z);
   void rotate(double x, double y, double z);
+
+  /**
+  * Gains.
+  */
+  void setControlGains(double kp_p, double kv_p, double kp_r, double kv_r);
+  void setJointFrictionDamping(double kv_friction);
 
   void printState();
 
@@ -86,6 +101,8 @@ private:
   scl::CGraphicsChai rchai;  // Chai interface for rendering graphics
   scl::SGraphicsChai* graphics;
   chai3d::cWorld* chai_world;
+
+  std::mutex data_lock; // Mutex that assures thread safety to data resources
 
   double t; // Run-time of program
   double t_sim; // Simulated time

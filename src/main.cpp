@@ -41,7 +41,7 @@ int main(int argc, char* argv[]) {
     } else if (thread_id == VISION_THREAD) {
 
       cout << oslock << "Vision thread started!" << endl << osunlock;
-      //app.visionLoop();
+      app.visionLoop();
       cout << oslock << "Vision thread finished!" << endl << osunlock;
 
     } else if (thread_id == SHELL_THREAD) {

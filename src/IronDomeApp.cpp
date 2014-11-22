@@ -8,6 +8,7 @@
 #include <string>
 #include <iomanip>
 
+#include <zmqpp/zmqpp.hpp>
 #include <sutil/CSystemClock.hpp>
 
 #include "ostreamlock.hpp"
@@ -26,7 +27,7 @@ static const Eigen::Vector3d OP_POS(0, 0, 0.15);
 static const Eigen::Vector3d START_POSITION(0, 0, 0);
 
 // Starting orientation of the operational point
-static const Eigen::Quaterniond START_ORIENTATION(1, 0, 1, 1);
+static const Eigen::Quaterniond START_ORIENTATION(1, 0, 1, 0);
 
 // Maximum commanded torque for every joint
 static const double JOINT_TORQUE_LIMIT = 100;
@@ -43,6 +44,8 @@ static const string robot_name("PumaBot");
 static const string graphics_name("PumaBotStdView");
 static const string config_file("./specs/Puma/PumaCfg.xml");
 #endif
+
+static const string VISION_ENDPOINT = "tcp://localhost:4242";
 
 static const double KP_P = 2000; //400;
 static const double KV_P = 250; //40
@@ -98,30 +101,64 @@ IronDomeApp::IronDomeApp() : t(0), t_sim(0), iter(0), finished(false),
 
 void IronDomeApp::translate(double x, double y, double z) {
   Eigen::Vector3d pos(x, y, z);
+  lock_guard<mutex> lg(data_lock);
   x_d += pos;
 }
 
 void IronDomeApp::rotate(double x, double y, double z) {
-  R_d = R_d * Eigen::AngleAxisd(x, Eigen::Vector3d::UnitX()) *
+
+  Eigen::Matrix3d temp = R_d * Eigen::AngleAxisd(x, Eigen::Vector3d::UnitX()) *
          Eigen::AngleAxisd(y, Eigen::Vector3d::UnitY()) *
          Eigen::AngleAxisd(z, Eigen::Vector3d::UnitZ());
+  lock_guard<mutex> lg(data_lock);
+  R_d = temp;
 }
 
-void IronDomeApp::setDesiredPosition(double x, double y, double z) { x_d << x, y, z; }
-void IronDomeApp::setDesiredPosition(const Eigen::Vector3d& pos) { x_d = pos; }
-void IronDomeApp::setDesiredOrientation(const Eigen::Matrix3d& R) { R_d = R; }
+void IronDomeApp::setDesiredPosition(double x, double y, double z) {
+  lock_guard<mutex> lg(data_lock);
+  x_d << x, y, z;
+}
+
+void IronDomeApp::setDesiredPosition(const Eigen::Vector3d& pos) {
+  lock_guard<mutex> lg(data_lock);
+  x_d = pos;
+}
+
+void IronDomeApp::setDesiredOrientation(const Eigen::Matrix3d& R) {
+  lock_guard<mutex> lg(data_lock);
+  R_d = R;
+}
 
 void IronDomeApp::setDesiredOrientation(const Eigen::Quaterniond& quat) {
-  R_d = quat.normalized().toRotationMatrix();
+  Eigen::Matrix3d temp = quat.normalized().toRotationMatrix();
+  lock_guard<mutex> lg(data_lock);
+  R_d = temp;
 }
 
 void IronDomeApp::setDesiredOrientation(double x, double y, double z) {
-  R_d = Eigen::AngleAxisd(x, Eigen::Vector3d::UnitX()) *
+  auto temp = Eigen::AngleAxisd(x, Eigen::Vector3d::UnitX()) *
       Eigen::AngleAxisd(y, Eigen::Vector3d::UnitY()) *
       Eigen::AngleAxisd(z, Eigen::Vector3d::UnitZ());
+  lock_guard<mutex> lg(data_lock);
+  R_d = temp;
+}
+
+void IronDomeApp::setControlGains(double kp_p, double kv_p, double kp_r, double kv_r) {
+  lock_guard<mutex> lg(data_lock);
+  this->kp_p = kp_p;
+  this->kv_p = kv_p;
+  this->kp_r = kp_r;
+  this->kv_r = kv_r;
+}
+
+void IronDomeApp::setJointFrictionDamping(double kv_friction) {
+  lock_guard<mutex> lg(data_lock);
+  this->kv_friction = kv_friction;
 }
 
 void IronDomeApp::updateState() {
+
+  lock_guard<mutex> lg(data_lock);
 
   // Update sensed generalized state
   q = rio.sensors_.q_;
@@ -153,11 +190,13 @@ void IronDomeApp::updateState() {
 }
 
 void IronDomeApp::commandTorque(Eigen::VectorXd torque) {
-
+  lock_guard<mutex> lg(data_lock);
   rio.actuators_.force_gc_commanded_ = torque;
 }
 
 void IronDomeApp::computeTorque() {
+
+  lock_guard<mutex> lg(data_lock);
 
   // Calculate torques toward desired position
   dx = x_c - x_d;
@@ -191,6 +230,7 @@ void IronDomeApp::computeTorque() {
 
 void IronDomeApp::integrate() {
 
+  lock_guard<mutex> lg(data_lock);
   dyn_tao.integrate(rio, SIMULATION_DT);
   iter++;
 
@@ -213,22 +253,34 @@ void IronDomeApp::controlsLoop() {
   }
 }
 
-
 void IronDomeApp::graphicsLoop() {
 
   // Current position
   chai3d::cMaterial x_c_mat;
-  x_c_mat.setColorf(1, 0.4, 0, 1);
+  x_c_mat.setBlueMediumSlate();
   chai3d::cMesh x_c_sphere(&x_c_mat);
-  chai3d::cCreateSphere(&x_c_sphere, 0.03);
+  chai3d::cCreateSphere(&x_c_sphere, 0.02);
   chai_world->addChild(&x_c_sphere);
 
   // Desired position
   chai3d::cMaterial x_d_mat;
-  x_d_mat.setColorf(.6, .2, 1, 1);
+  x_d_mat.setBlue();
   chai3d::cMesh x_d_sphere(&x_d_mat);
+  x_d_sphere.setUseTransparency(true);
+  x_d_sphere.setTransparencyLevel(0.5);
   chai3d::cCreateSphere(&x_d_sphere, 0.03);
   chai_world->addChild(&x_d_sphere);
+
+  // Collision sphere
+  chai3d::cMaterial collision_sphere_mat;
+  collision_sphere_mat.setColorf(1, 1, 1, 0.2);
+  collision_sphere_mat.setTransparencyLevel(0.5);
+  chai3d::cMesh collision_sphere(&collision_sphere_mat);
+  collision_sphere.setUseTransparency(true);
+  collision_sphere.setTransparencyLevel(0.1);
+  chai3d::cCreateSphere(&collision_sphere, 0.8);
+  chai_world->addChild(&collision_sphere);
+  collision_sphere.setLocalPos(-.0, -.0, -.54);
 
   long nanosec = static_cast<long>(GRAPHICS_DT * 1e9);
   const timespec ts = {0, nanosec};
@@ -247,14 +299,16 @@ void IronDomeApp::graphicsLoop() {
 void printHelp() {
   cout << oslock
       << "Commands:\n"
-      << "  [m]ove x, y, z                Move to by vector (x, y, z).\n"
-      << "  [t]ranslate x, y, z           Translate by vector (x, y, z).\n"
-      << "  [r]otate x, y, z              Rotate by XYZ euler angles.\n"
-      << "  [o]rientation x, y, z         Orient to XYZ euler angles.\n"
-      << "  [q]uaternion w, x, y, z       Orient to quaternion (w, x, y, z).\n"
-      << "  [p]rint                       Print matrices for debugging.\n"
-      << "  [h]elp                        Print this help message.\n"
-      << "  [e]xit                        Exit the simulation.\n"
+      << "  [p]rint                            Print matrices for debugging.\n"
+      << "  [h]elp                             Print this help message.\n"
+      << "  [e]xit                             Exit the simulation.\n"
+      << "  [m]ove x, y, z                     Move to by vector (x, y, z).\n"
+      << "  [t]ranslate x, y, z                Translate by vector (x, y, z).\n"
+      << "  [r]otate x, y, z                   Rotate by XYZ euler angles.\n"
+      << "  [o]rientation x, y, z              Orient to XYZ euler angles.\n"
+      << "  [q]uaternion w, x, y, z            Orient to quaternion (w, x, y, z).\n"
+      << "  [g]ains kp_p, kv_p, kp_r, kv_r     Set the task-space control gains.\n"
+      << "  [f]riction kv_friction             Set the joint friction gain.\n"
       << endl << osunlock;
 }
 
@@ -278,6 +332,45 @@ void IronDomeApp::printState() {
   cout << "tau = " << tau.transpose() << "\n";
 
   cout << osunlock;
+}
+
+void IronDomeApp::visionLoop() {
+
+  // Initialize a 0MQ subscribe socket
+  zmqpp::context context;
+  zmqpp::socket socket (context, zmqpp::socket_type::subscribe);
+  socket.subscribe("");
+
+  // Connect to the endpoint providing vision data
+  socket.connect(VISION_ENDPOINT);
+
+  while(!finished) {
+
+    // Receive a message
+    zmqpp::message message;
+    socket.receive(message);
+
+    int id; // Unique ID number of projectile
+    double time, x, y, z; // Timestamp and measured position
+
+    string msg;
+    message >> msg;
+    stringstream msg_stream(msg);
+
+    // Read the message into the variables
+    msg_stream >> id >> time >> x >> y >> z;
+
+    if(msg_stream.fail()) {
+      cerr << oslock << "ERROR: Invalid projectile measurement received: "
+           << msg << endl << osunlock;
+      continue;
+    }
+
+    cout << oslock << "Measurement for projectile " << id
+         << " at t = " << time << ": "
+         << "(" << x << ", " << y << ", " << z << ")"
+         << endl << osunlock;
+  }
 }
 
 void IronDomeApp::shellLoop() {
@@ -304,9 +397,7 @@ void IronDomeApp::shellLoop() {
     if((cmd == "move") || (cmd == "m")) {
 
       double x, y, z;
-      cin >> x;
-      cin >> y;
-      cin >> z;
+      cin >> x >> y >> z;
       cout << oslock << "Moving to "
           << "(" << x << ", " << y << ", " << z << ")" << endl << osunlock;
       setDesiredPosition(x, y, z);
@@ -314,9 +405,7 @@ void IronDomeApp::shellLoop() {
     } else if((cmd == "translate") || (cmd == "t")) {
 
       double x, y, z;
-      cin >> x;
-      cin >> y;
-      cin >> z;
+      cin >> x >> y >> z;
       cout << oslock << "Translating by "
            << "(" << x << ", " << y << ", " << z << ")" << endl << osunlock;
       translate(x, y, z);
@@ -324,34 +413,45 @@ void IronDomeApp::shellLoop() {
     } else if((cmd == "rotate") || (cmd == "r")) {
 
       double x, y, z;
-      cin >> x;
-      cin >> y;
-      cin >> z;
+      cin >> x >> y >> z;
       cout << oslock << "Rotating by XYZ euler angles "
-           << "(" << x << ", " << y << ", " << z << ")" <<endl << osunlock;
+           << "(" << x << ", " << y << ", " << z << ")" << endl << osunlock;
       rotate(x, y, z);
 
     } else if((cmd == "orientation") || (cmd == "o")) {
 
       double x, y, z;
-      cin >> x;
-      cin >> y;
-      cin >> z;
+      cin >> x >> y >> z;
       cout << oslock << "Orienting to XYZ euler angles "
-          << "(" << x << ", " << y << ", " << z << ")" <<endl << osunlock;
+          << "(" << x << ", " << y << ", " << z << ")" << endl << osunlock;
       setDesiredOrientation(x, y, z);
 
     } else if((cmd == "quaterion") || (cmd == "q")) {
 
       double w, x, y, z;
-      cin >> w;
-      cin >> x;
-      cin >> y;
-      cin >> z;
+      cin >> w >> x >> y >> z;
       cout << oslock << "Orienting to quaternion "
-          << "(" << w << ", " << x << ", " << y << ", " << z << ")" <<endl << osunlock;
+          << "(" << w << ", " << x << ", " << y << ", " << z << ")" << endl << osunlock;
       Eigen::Quaterniond quat(w, x, y, z);
       setDesiredOrientation(quat);
+
+    } else if((cmd == "gains") || (cmd == "g")) {
+
+      double kp_p, kv_p, kp_r, kv_r;
+      cin >> kp_p >> kv_p >> kp_r >> kv_r;
+      cout << oslock << "Setting control gains "
+           << "kp_p = " << kp_p << ", kp_v = " << kv_p
+           << ", kp_r = " << kp_r << ", kv_r = " << kv_r
+           << endl << osunlock;
+      setControlGains(kp_p, kv_p, kp_r, kv_r);
+
+    } else if((cmd == "friction") || (cmd == "f")) {
+
+      double kv_friction;
+      cin >> kv_friction;
+      cout << oslock << "Setting joint friction kv_friction = " << kv_friction
+           << endl << osunlock;
+      setJointFrictionDamping(kv_friction);
 
     } else if((cmd == "print") || (cmd == "p")) {
       printState();
