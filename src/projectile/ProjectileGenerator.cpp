@@ -9,6 +9,8 @@
 #include "ProjectileGenerator.hpp"
 #include <sutil/CSystemClock.hpp>
 
+using namespace std;
+
 // Mean expected origin of projectiles
 static const Eigen::Vector3d p0_avg = {3.4, 0, 0};
 
@@ -20,15 +22,23 @@ static const double p0_stddev = 0.3;
 static const double v0_stddev = 0.2;
 
 // Simulated measurement noise
-static const double pObserved_stddev = 0.00;
+static const double pObserved_stddev = 0.05;
 
-Projectile::Projectile(int id, double t0,
+// ------------------------------
+// SimProjectile
+// ------------------------------
+
+SimProjectile::SimProjectile(int id, double t0,
     const Eigen::Vector3d& p0, const Eigen::Vector3d& v0, const Eigen::Vector3d& a0) :
-  id(id), t0(t0), p0(p0), v0(v0), a0(a0), p(p0), v(v0), a(a0) {}
+  id(id), t0(t0), p0(p0), v0(v0), a0(a0) {}
 
-bool Projectile::isExpired(const std::pair<int, Projectile>& pair) {
-  return pair.second.p[0] < -1;
+bool SimProjectile::isExpired() {
+  return p[0] < -1;
 }
+
+// ------------------------------
+// ProjectileGenerator
+// ------------------------------
 
 ProjectileGenerator::ProjectileGenerator(double t_avg, double v_avg, double theta_avg) :
   count(0),
@@ -36,14 +46,15 @@ ProjectileGenerator::ProjectileGenerator(double t_avg, double v_avg, double thet
   v_avg(v_avg),
   theta_avg(theta_avg),
   exp_dist(1.0/t_avg),
-  normal_dist(0.0, 1.0) {
+  normal_dist(0.0, 1.0),
+  pendingProjectileExists(false) {
 
     // Initialize our random number generator with a time-based seed
     long seed = std::chrono::system_clock::now().time_since_epoch().count();
     generator = std::default_random_engine(seed);
   }
 
-Projectile ProjectileGenerator::getNextProjectile() {
+SimProjectile ProjectileGenerator::getNextProjectile() {
 
   Eigen::Vector3d p0 = p0_avg;
   Eigen::Vector3d v0 = {-v_avg*cos(theta_avg), 0, v_avg*sin(theta_avg)};
@@ -59,11 +70,11 @@ Projectile ProjectileGenerator::getNextProjectile() {
 
   count++;
 
-  Projectile proj = {count, t, p0, v0, gravity};
+  SimProjectile proj = {count, t, p0, v0, gravity};
   return proj;
 }
 
-Eigen::Vector3d ProjectileGenerator::observePosition(Projectile& proj) {
+Eigen::Vector3d ProjectileGenerator::observePosition(const SimProjectile& proj) {
 
   double now = sutil::CSystemClock::getSysTime();
   double t = now - proj.t0;
@@ -76,4 +87,44 @@ Eigen::Vector3d ProjectileGenerator::observePosition(Projectile& proj) {
     p[i] += normal_dist(generator) * pObserved_stddev;
 
   return p;
+}
+
+void ProjectileGenerator::update() {
+
+  // Queue up the next pending projectile
+  if(!pendingProjectileExists) {
+    pendingProjectile = getNextProjectile();
+    pendingProjectileExists = true;
+  }
+
+  // Activate the pending projectile when the time comes
+  double now = sutil::CSystemClock::getSysTime();
+  if(now >= pendingProjectile.t0) {
+    projectiles[pendingProjectile.id] = pendingProjectile;
+    pendingProjectileExists = false;
+    cout << "Created projectile " << pendingProjectile.id << " at t = " << now << "\n"
+         << "    p0 = " << pendingProjectile.p0.transpose() << "\n"
+         << "    v0 = " << pendingProjectile.v0.transpose() << "\n"
+         << "    a0 = " << pendingProjectile.a0.transpose() << "\n";
+  }
+
+  // Update the position of each projectile
+  for(std::pair<const int, SimProjectile>& p : projectiles) {
+    p.second.p = observePosition(p.second);
+  }
+
+  // Get rid of expired projectiles
+  // Special method of iteration because we are deleting
+  for(auto it = projectiles.begin(); it != projectiles.end();) {
+    if ((*it).second.isExpired()) {
+      std::cout << "Removing expired projectile " << (*it).first << "\n";
+      projectiles.erase(it++);
+    } else {
+      ++it;
+    }
+  }
+}
+
+const std::map<int, SimProjectile>& ProjectileGenerator::getProjectiles() {
+  return projectiles;
 }
