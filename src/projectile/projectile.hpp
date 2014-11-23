@@ -7,6 +7,7 @@
 #include <map>
 #include <string>
 #include <fstream>
+#include <mutex>
 
 #include <Eigen/Dense>
 
@@ -29,12 +30,12 @@ public:
 */
 class Projectile {
 
-friend class ProjectileManager;
+//friend class ProjectileManager;
 
 public:
 
   Projectile(int id, const ProjectileMeasurement& m0);
-  Projectile() {};
+  Projectile() : id(-1) {};
 
   /**
   * Add a measured value to the estimator.
@@ -44,40 +45,43 @@ public:
   /**
   * Read the projectile's estimated state at time t.
   */
-  Eigen::Vector3d getPosition(double t) const;
-  Eigen::Vector3d getVelocity(double t) const;
-  Eigen::Vector3d getAcceleration(double t) const;
+  Eigen::Vector3d getPosition(double t);
+  Eigen::Vector3d getVelocity(double t);
+  Eigen::Vector3d getAcceleration(double t);
 
   /**
   * Get the time the projectile will first intersect with a
   * sphere at the given origin and radius, or -1 if it will
   * not happen.
   */
-  double getIntersectionTime(const Eigen::Vector3d& origin, double radius) const;
+  double getIntersectionTime(const Eigen::Vector3d& origin, double radius);
 
-  // ID number
-  int id;
+  double getEstimateTime();
+  const Eigen::Vector3d& getPositionEstimate();
+  const Eigen::Vector3d& getVelocityEstimate();
+  const Eigen::Vector3d& getAccelerationEstimate();
+  const Eigen::Vector3d& getLastObservedPosition();
 
-  // Offset between this program's time and the reporting
-  // program's time (t0 - tObs0)
-  double tOffset;
+  int getID() const { return id; };
 
-  // Time of last estimate
-  double t;
-
-  // Estimated state, with pos/vel/acc vectors of x, y, z
-  // TODO watch out for thread-unsafe access here
-  Eigen::Vector3d p, v, a;
-
-  // Last measurement
-  Eigen::Vector3d pObs;
-
-  bool isExpired;
+  bool isConverged();
 
 private:
 
   const static int n = 3; // Number of states
   const static int m = 1; // Number of measurements
+
+  // ID number
+  int id;
+
+  // Time of last estimate
+  double t;
+
+  // Estimated state, with pos/vel/acc vectors of x, y, z
+  Eigen::Vector3d p, v, a;
+
+  // Last measurement
+  Eigen::Vector3d pObs;
 
   // Estimated state, with x, y, z vectors of pos/vel/acc
   Eigen::Vector3d x, y, z;
@@ -90,6 +94,13 @@ private:
 
   // How many observations we've made
   int observations;
+
+  // Used to prevent concurrent access to variables
+  std::mutex data_lock;
+
+  // Offset between this program's time and the reporting
+  // program's time (t0 - tObs0)
+  double tOffset;
 };
 
 // ----------------------------
@@ -110,13 +121,21 @@ public:
   void addObservation(int id, double t, double x, double y, double z);
 
   /**
-  * Return a const reference to the active projectiles.
+  * Call periodically to handle expirations.
   */
-  const std::map<int, Projectile>& getActiveProjectiles();
+  void updateActiveProjectiles();
+
+  /**
+  * Return a const reference to the active, converged projectiles.
+  */
+  std::map<int, Projectile*>& getActiveProjectiles();
 
 private:
 
   // List of active projectiles
-  std::map<int, Projectile> projectiles;
-  std::map<int, Projectile> converged_projectiles;
+  std::map<int, Projectile*> projectiles;
+  std::map<int, Projectile*> converged_projectiles;
+
+  // Used to prevent concurrent access to projectile vectors
+  std::mutex projectile_lock;
 };

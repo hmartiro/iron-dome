@@ -14,6 +14,9 @@ static const double GRAVITY = -9.81;
 // How many observations until we deem the trajectory converged
 static const int CONVERGE_LIMIT = 4;
 
+// When the projectile is due to pass this point, get rid of it
+static const double X_EXPIRATION = -1;
+
 using namespace std;
 
 // ----------------------------
@@ -21,7 +24,7 @@ using namespace std;
 // ----------------------------
 
 Projectile::Projectile(int id, const ProjectileMeasurement& obs) :
-    id(id), isExpired(false), converged(false), observations(0) {
+    id(id), converged(false), observations(0) {
 
   double dt = 1.0/30; // Time step
 
@@ -68,6 +71,8 @@ Projectile::Projectile(int id, const ProjectileMeasurement& obs) :
 
 void Projectile::addObservation(const ProjectileMeasurement& obs) {
 
+  lock_guard<mutex> lg(data_lock);
+
   // Measurement timestamp, in our system time
   double tNew = obs.t + tOffset;
 
@@ -111,23 +116,57 @@ void Projectile::addObservation(const ProjectileMeasurement& obs) {
   //cout << "Observations for " << id << ": " << observations << endl;
 }
 
-Eigen::Vector3d Projectile::getPosition(double t1) const {
-  return p + v*(t1-t) + 0.5 * a*(t1-t)*(t1-t);
+double Projectile::getEstimateTime() {
+  lock_guard<mutex> lg(data_lock);
+  return t;
 }
 
-Eigen::Vector3d Projectile::getVelocity(double t1) const {
-  return v + a*(t1-t);
+const Eigen::Vector3d& Projectile::getPositionEstimate() {
+  lock_guard<mutex> lg(data_lock);
+  return p;
 }
 
-Eigen::Vector3d Projectile::getAcceleration(double t1) const {
+const Eigen::Vector3d& Projectile::getVelocityEstimate() {
+  lock_guard<mutex> lg(data_lock);
+  return v;
+}
+
+const Eigen::Vector3d& Projectile::getAccelerationEstimate() {
+  lock_guard<mutex> lg(data_lock);
   return a;
 }
 
-double Projectile::getIntersectionTime(const Eigen::Vector3d& origin, double radius) const {
+const Eigen::Vector3d& Projectile::getLastObservedPosition() {
+  lock_guard<mutex> lg(data_lock);
+  return pObs;
+}
+
+Eigen::Vector3d Projectile::getPosition(double t1) {
+  lock_guard<mutex> lg(data_lock);
+  return p + v*(t1-t) + 0.5 * a*(t1-t)*(t1-t);
+}
+
+Eigen::Vector3d Projectile::getVelocity(double t1) {
+  lock_guard<mutex> lg(data_lock);
+  return v + a*(t1-t);
+}
+
+Eigen::Vector3d Projectile::getAcceleration(double t1) {
+  lock_guard<mutex> lg(data_lock);
+  return a;
+}
+
+bool Projectile::isConverged() {
+  lock_guard<mutex> lg(data_lock);
+  return converged;
+}
+
+double Projectile::getIntersectionTime(const Eigen::Vector3d& origin, double radius) {
 
   // Polynomial coefficients
   Eigen::VectorXd coeff(5);
 
+  data_lock.lock();
   double x0 = p(0) - origin(0);
   double y0 = p(1) - origin(1);
   double z0 = p(2) - origin(2);
@@ -136,6 +175,7 @@ double Projectile::getIntersectionTime(const Eigen::Vector3d& origin, double rad
   double vz = v(2);
   double g = a(2);
   double R = radius;
+  data_lock.unlock();
 
   coeff[4] = g*g/4;
   coeff[3] = g*vz;
@@ -158,21 +198,21 @@ ProjectileManager::ProjectileManager() {}
 
 void ProjectileManager::addObservation(int id, double t, double x, double y, double z) {
 
+  lock_guard<mutex> lg(projectile_lock);
+
   ProjectileMeasurement obs(t, x, y, z);
 
   if(projectiles.find(id) == projectiles.end()) {
     // Projectile not found, create it
-    projectiles[id] = Projectile(id, obs);
+    projectiles[id] = new Projectile(id, obs);
   } else {
     // Add measurement for projectile
-    projectiles[id].addObservation(obs);
+    projectiles[id]->addObservation(obs);
   }
 
-  if(projectiles[id].converged) {
+  if(projectiles[id]->isConverged()) {
     converged_projectiles[id] = projectiles[id];
   }
-
-  // TODO handle expiration
 
 //  cout << oslock
 //       << "Updated projectile " << id << " at t = " << t << ":\n"
@@ -182,7 +222,36 @@ void ProjectileManager::addObservation(int id, double t, double x, double y, dou
 //       << osunlock;
 }
 
-const std::map<int, Projectile>& ProjectileManager::getActiveProjectiles() {
+void ProjectileManager::updateActiveProjectiles() {
 
+  lock_guard<mutex> lg(projectile_lock);
+
+  double now = sutil::CSystemClock::getSysTime();
+
+  // Get rid of expired projectiles
+  // Special method of iteration because we are deleting
+  for(auto it = converged_projectiles.begin(); it != converged_projectiles.end();) {
+    if ((*it).second->getPosition(now)(0) < X_EXPIRATION) {
+      converged_projectiles.erase(it++);
+    } else {
+      ++it;
+    }
+  }
+
+  // Get rid of expired projectiles
+  // Special method of iteration because we are deleting
+  for(auto it = projectiles.begin(); it != projectiles.end();) {
+    if ((*it).second->getPosition(now)(0) < X_EXPIRATION) {
+      std::cout << "Removing expired projectile " << (*it).first << "\n";
+      delete (*it).second;
+      projectiles.erase(it++);
+    } else {
+      ++it;
+    }
+  }
+}
+
+std::map<int, Projectile*>& ProjectileManager::getActiveProjectiles() {
+  lock_guard<mutex> lg(projectile_lock);
   return converged_projectiles;
 }

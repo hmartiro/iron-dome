@@ -194,6 +194,12 @@ void IronDomeApp::commandTorque(Eigen::VectorXd torque) {
   rio.actuators_.force_gc_commanded_ = torque;
 }
 
+void IronDomeApp::stateMachine() {
+
+  auto active_projectiles = projectile_manager.getActiveProjectiles();
+
+}
+
 void IronDomeApp::computeTorque() {
 
   lock_guard<mutex> lg(data_lock);
@@ -243,6 +249,7 @@ void IronDomeApp::controlsLoop() {
   const timespec ts = {0, nanosec};
   while(!finished) {
 
+    projectile_manager.updateActiveProjectiles();
     updateState();
     computeTorque();
     commandTorque(tau);
@@ -307,49 +314,69 @@ void IronDomeApp::graphicsLoop() {
     x_c_sphere.setLocalPos(x_c[0], x_c[1], x_c[2]);
     x_d_sphere.setLocalPos(x_d[0], x_d[1], x_d[2]);
 
+    projectile_manager.updateActiveProjectiles();
+    auto active_projectiles = projectile_manager.getActiveProjectiles();
+
     // Draw projectiles
-    for(const pair<int, Projectile>& p : projectile_manager.getActiveProjectiles()) {
-      const Projectile& proj = p.second;
+    for(pair<const int, Projectile*>& p : active_projectiles) {
+      Projectile* proj = p.second;
+      int id = proj->getID();
 
       // Create a new sphere if needed
-      if(projectile_spheres.find(proj.id) == projectile_spheres.end()) {
+      if(projectile_spheres.find(id) == projectile_spheres.end()) {
 
-        projectile_spheres[proj.id] = chai3d::cMesh(&projectile_mat);
-        chai3d::cCreateSphere(&projectile_spheres[proj.id], 0.04);
-        chai_world->addChild(&projectile_spheres[proj.id]);
+        projectile_spheres[id] = chai3d::cMesh(&projectile_mat);
+        chai3d::cCreateSphere(&projectile_spheres[id], 0.04);
+        chai_world->addChild(&projectile_spheres[id]);
 
-        projectile_spheres_m[proj.id] = chai3d::cMesh(&projectile_mat_m);
-        chai3d::cCreateSphere(&projectile_spheres_m[proj.id], 0.04);
-        chai_world->addChild(&projectile_spheres_m[proj.id]);
+        projectile_spheres_m[id] = chai3d::cMesh(&projectile_mat_m);
+        chai3d::cCreateSphere(&projectile_spheres_m[id], 0.04);
+        chai_world->addChild(&projectile_spheres_m[id]);
 
-        projectile_spheres_c[proj.id] = chai3d::cMesh(&projectile_mat_c);
-        chai3d::cCreateSphere(&projectile_spheres_c[proj.id], 0.04);
-        chai_world->addChild(&projectile_spheres_c[proj.id]);
+        projectile_spheres_c[id] = chai3d::cMesh(&projectile_mat_c);
+        chai3d::cCreateSphere(&projectile_spheres_c[id], 0.04);
+        chai_world->addChild(&projectile_spheres_c[id]);
       }
 
       // Set sphere position
       double now = sutil::CSystemClock::getSysTime();
-      Eigen::Vector3d pos = proj.getPosition(now);
-      projectile_spheres[proj.id].setLocalPos(pos(0), pos(1), pos(2));
-      projectile_spheres_m[proj.id].setLocalPos(proj.pObs(0), proj.pObs(1), proj.pObs(2));
+      Eigen::Vector3d pos = proj->getPosition(now);
+      const Eigen::Vector3d& pObs = proj->getLastObservedPosition();
+      projectile_spheres[id].setLocalPos(pos(0), pos(1), pos(2));
+      projectile_spheres_m[id].setLocalPos(pObs(0), pObs(1), pObs(2));
 
-      double tIntersect = proj.getIntersectionTime(collision_sphere_origin, collision_sphere_radius);
+      double tIntersect = proj->getIntersectionTime(collision_sphere_origin, collision_sphere_radius);
       if(tIntersect >= 0) {
-        Eigen::Vector3d collision_pos = proj.getPosition(tIntersect);
-        projectile_spheres_c[proj.id].setLocalPos(collision_pos(0), collision_pos(1), collision_pos(2));
+        Eigen::Vector3d collision_pos = proj->getPosition(tIntersect);
+        projectile_spheres_c[id].setLocalPos(collision_pos(0), collision_pos(1), collision_pos(2));
 //        cout << oslock << "Projectile " << proj.id << " will collide with sphere at t = "
 //             << tIntersect << " and position = " << collision_pos.transpose() << endl << osunlock;
       }
     }
 
-    // TODO remove expired
-    // Get rid of expired projectiles
-    // Special method of iteration because we are deleting
-    auto projectiles = projectile_manager.getActiveProjectiles();
-    for(auto it = projectiles.begin(); it != projectiles.end();) {
-      if ((*it).second.p(0) < -1) {
-        std::cout << "Removing expired projectile " << (*it).first << "\n";
-        projectiles.erase(it++);
+    // Remove spheres that are no longer representing active projectiles
+    for(auto it = projectile_spheres.begin(); it != projectile_spheres.end();) {
+      if(active_projectiles.find((*it).first) == active_projectiles.end()) {
+        chai_world->removeChild(&(*it).second);
+        projectile_spheres.erase(it++);
+      } else {
+        ++it;
+      }
+    }
+
+    for(auto it = projectile_spheres_m.begin(); it != projectile_spheres_m.end();) {
+      if(active_projectiles.find((*it).first) == active_projectiles.end()) {
+        chai_world->removeChild(&(*it).second);
+        projectile_spheres_m.erase(it++);
+      } else {
+        ++it;
+      }
+    }
+
+    for(auto it = projectile_spheres_c.begin(); it != projectile_spheres_c.end();) {
+      if(active_projectiles.find((*it).first) == active_projectiles.end()) {
+        chai_world->removeChild(&(*it).second);
+        projectile_spheres_c.erase(it++);
       } else {
         ++it;
       }

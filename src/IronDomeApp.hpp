@@ -88,6 +88,11 @@ private:
   */
   void computeTorque();
 
+  /**
+  * State machine that sets the desired position and orientation.
+  */
+  void stateMachine();
+
   void commandTorque(Eigen::VectorXd torque);
 
   void integrate();
