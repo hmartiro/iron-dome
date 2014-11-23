@@ -76,6 +76,8 @@ public:
 
   void printState();
 
+  bool isPaused();
+
 private:
 
   /**
@@ -124,7 +126,6 @@ private:
   int dof; // Degrees of freedom of our robot
 
   double kp_p, kv_p, kp_r, kv_r; // Control gains
-  double kv_friction;
 
   Eigen::MatrixXd J; // Jacobian
   Eigen::VectorXd q, dq, ddq; // Generalized position/velocity/acceleration
@@ -154,4 +155,7 @@ private:
 
   // Projectile we are currently chasing
   Projectile* target;
+
+  // Whether the projectile interception is paused
+  bool paused;
 };

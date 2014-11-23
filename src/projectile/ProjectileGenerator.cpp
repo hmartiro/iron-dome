@@ -12,7 +12,7 @@
 using namespace std;
 
 // Mean expected origin of projectiles
-static const Eigen::Vector3d p0_avg = {4.5, 0, 0};
+static const Eigen::Vector3d p0_avg = {4.5, 0, .9};
 
 // Gravity vector
 static const Eigen::Vector3d gravity = {0, 0, -9.81};

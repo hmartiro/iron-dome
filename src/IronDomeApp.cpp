@@ -20,54 +20,79 @@ static const double SIMULATION_DT = 0.0001;
 static const double GRAPHICS_DT = 0.020;
 
 // Position of the operational point relative
-// to the Kuka's end-effector
-static const Eigen::Vector3d OP_POS(0, 0, 0.15);
-
-// Starting position of the operational point
-static const Eigen::Vector3d START_POSITION(0, 0, 0);
-
-// Starting orientation of the operational point
-static const Eigen::Quaterniond START_ORIENTATION(1, 0, 1, 0);
-
-// Maximum commanded torque for every joint
-static const double JOINT_TORQUE_LIMIT = 100;
+// to the end-effector
+static const Eigen::Vector3d OP_POS(0, 0.0, 0.15);
 
 // Robot states
 static const int STATE_UNINIT = -1;
 static const int STATE_IDLE = 0;
 static const int STATE_TARGETING = 1;
+static const int STATE_PAUSED = 2;
+
+// Choose one robot
+#define IIWA
+//#define KUKA
+//#define PUMA
+
+#ifdef IIWA
+static const string robot_name("iiwaBot");
+static const string graphics_name("iiwaBotStdView");
+static const string config_file("./specs/iiwa/iiwaCfg.xml");
+
+static const Eigen::Vector3d START_POSITION(0.2, 0, 0.95);
+static const Eigen::Quaterniond START_ORIENTATION(0.92, 0, 0.38, 0);
 
 // Our sphere of interest for interceptions
-static const Eigen::Vector3d COLLISION_SPHERE_POS(0, 0, -0.54);
-static const double COLLISION_SPHERE_RADIUS = 0.8;
-
-// Comment this line to enable KUKA vs PUMA
-#define KUKA
+static const Eigen::Vector3d COLLISION_SPHERE_POS(0, 0, 0.5);
+static const double COLLISION_SPHERE_RADIUS = 0.7;
+#endif
 
 #ifdef KUKA
 static const string robot_name("KukaBot");
 static const string graphics_name("KukaBotStdView");
 static const string config_file("./specs/Kuka/KukaCfg.xml");
-#else
+
+static const Eigen::Vector3d START_POSITION(0, 0, 0);
+static const Eigen::Quaterniond START_ORIENTATION(1, 0, 1, 0);
+
+// Our sphere of interest for interceptions
+static const Eigen::Vector3d COLLISION_SPHERE_POS(0, 0, -0.54);
+static const double COLLISION_SPHERE_RADIUS = 0.7;
+#endif
+
+#ifdef PUMA
 static const string robot_name("PumaBot");
 static const string graphics_name("PumaBotStdView");
 static const string config_file("./specs/Puma/PumaCfg.xml");
+
+static const Eigen::Vector3d START_POSITION(0, 0, 0.9);
+static const Eigen::Quaterniond START_ORIENTATION(1, 0, 1, 0);
+
+// Our sphere of interest for interceptions
+static const Eigen::Vector3d COLLISION_SPHERE_POS(0, 0, 0.338);
+static const double COLLISION_SPHERE_RADIUS = 0.7;
 #endif
 
 static const string VISION_ENDPOINT = "tcp://localhost:4242";
 
-static const double KP_P = 2000; //400;
-static const double KV_P = 250; //40
-static const double KP_R = 2000; //2000;
-static const double KV_R = 250; //400;
+static const double KP_P = 5000;
+static const double KV_P = 400;
+static const double KP_R = 5000;
+static const double KV_R = 400;
 
-static const double KV_FRICTION = 5;
+// How far towards the desired position to command
+static const double DX_MAX_MAGNITUDE = 0.07;
+static const double DPHI_MAX_MAGNITUDE = 0.15;
+
+// Constraints on which targets to intercept
+static const double T_INTERCEPT_MIN = 0.3;
+static const double HEIGHT_INTERCEPT_MIN = 0.5;
 
 static const bool gravityCompEnabled = true;
 
 IronDomeApp::IronDomeApp() : t(0), t_sim(0), iter(0), finished(false),
-        op_pos(OP_POS), kp_p(KP_P), kv_p(KV_P), kp_r(KP_R), kv_r(KV_R), kv_friction(KV_FRICTION),
-        state(STATE_UNINIT) {
+        op_pos(OP_POS), kp_p(KP_P), kv_p(KV_P), kp_r(KP_R), kv_r(KV_R),
+        state(STATE_UNINIT), paused(true) {
 
   // Load robot spec
   bool flag = parser.readRobotFromFile(config_file,"./specs/", robot_name, rds);
@@ -165,7 +190,9 @@ void IronDomeApp::setControlGains(double kp_p, double kv_p, double kp_r, double 
 
 void IronDomeApp::setJointFrictionDamping(double kv_friction) {
   lock_guard<mutex> lg(data_lock);
-  this->kv_friction = kv_friction;
+  for(int i = 0; i < dof; i++) {
+    rds.rb_tree_.at(i)->friction_gc_kv_ = kv_friction;
+  }
 }
 
 void IronDomeApp::updateState() {
@@ -206,19 +233,53 @@ void IronDomeApp::commandTorque(Eigen::VectorXd torque) {
   rio.actuators_.force_gc_commanded_ = torque;
 }
 
+bool IronDomeApp::isPaused() {
+  lock_guard<mutex> lg(data_lock);
+  return paused;
+}
+
 void IronDomeApp::stateMachine() {
+
+  //cout << oslock << "State: " << state << endl << osunlock;
+
+  // Pause if needed
+  if(isPaused() && (state != STATE_PAUSED)) {
+    state = STATE_PAUSED;
+    target = NULL;
+    setDesiredPosition(START_POSITION);
+    setDesiredOrientation(START_ORIENTATION);
+  }
 
   projectile_manager.updateActiveProjectiles();
   auto active_projectiles = projectile_manager.getActiveProjectiles();
 
-  if(state == STATE_IDLE) {
+  if(state == STATE_PAUSED) {
+
+    if(!isPaused())
+      state = STATE_IDLE;
+
+  } if(state == STATE_IDLE) {
 
     Projectile* best_target = NULL;
     for(pair<const int, Projectile*>& p : active_projectiles) {
 
       Projectile* proj = p.second;
       if(!best_target) {
-        best_target = proj;
+
+        double tIntersect = proj->getIntersectionTime(
+            COLLISION_SPHERE_POS,
+            COLLISION_SPHERE_RADIUS
+        );
+
+        if(tIntersect >= T_INTERCEPT_MIN) {
+          Eigen::Vector3d collision_pos = proj->getPosition(tIntersect);
+          if(collision_pos[2] > HEIGHT_INTERCEPT_MIN) {
+            best_target = proj;
+          }
+        }
+
+
+
       } else {
         // TODO compare proj to best_target
         // if better target, best_target = proj
@@ -245,12 +306,24 @@ void IronDomeApp::stateMachine() {
       return;
     }
 
-    double tIntersect = target->getIntersectionTime(COLLISION_SPHERE_POS, COLLISION_SPHERE_RADIUS);
+    double tIntersect = target->getIntersectionTime(
+        COLLISION_SPHERE_POS,
+        COLLISION_SPHERE_RADIUS
+    );
+
     if(tIntersect >= 0) {
       Eigen::Vector3d collision_pos = target->getPosition(tIntersect);
       setDesiredPosition(collision_pos);
-    }
 
+      Eigen::Vector3d desired_z_axis = -target->getVelocity(tIntersect);
+      desired_z_axis.normalize();
+
+      setDesiredOrientation(
+          Eigen::Quaterniond::FromTwoVectors(
+              Eigen::Vector3d::UnitZ(), desired_z_axis
+          )
+      );
+    }
   } else if(state == STATE_UNINIT) {
     throw std::runtime_error("Uninitialized!");
   }
@@ -260,16 +333,28 @@ void IronDomeApp::computeTorque() {
 
   lock_guard<mutex> lg(data_lock);
 
-  // Calculate torques toward desired position
+  // Position error vector
   dx = x_c - x_d;
+
+  // Clamp the position error vector
+  double dist_p = min(dx.norm(), DX_MAX_MAGNITUDE);
+  dx = dx.normalized() * dist_p;
+
+  // Calculate the position force
   F_p = -kp_p * dx - kv_p * v;
 
-  // Calculate torques toward desired orientation
+  // Rotational error vector
   dphi = -0.5 * (
       R_c.col(0).cross(R_d.col(0))
     + R_c.col(1).cross(R_d.col(1))
     + R_c.col(2).cross(R_d.col(2))
   );
+
+  // Clamp the rotation error vector
+  double dist_r = min(dphi.norm(), DPHI_MAX_MAGNITUDE);
+  dphi = dphi.normalized() * dist_r;
+
+  // Calculate the rotation force
   F_r = -kp_r * dphi - kv_r * omega;
 
   // Superimpose the forces
@@ -281,12 +366,15 @@ void IronDomeApp::computeTorque() {
   // Add gravity compensation
   if(gravityCompEnabled) tau += g_q;
 
-  // Add damping from friction
-  tau += -kv_friction * dq;
-
   // Apply torque limits
-  for(int i = 0; i < tau.size(); i++) {
-    tau(i) = max(min(tau(i), JOINT_TORQUE_LIMIT), -JOINT_TORQUE_LIMIT);
+  for(int i = 0; i < dof; i++) {
+    tau(i) = min(tau(i), rds.rb_tree_.at(i)->force_gc_lim_upper_);
+    tau(i) = max(tau(i), rds.rb_tree_.at(i)->force_gc_lim_lower_);
+  }
+
+  // Add damping to simulate friction
+  for(int i = 0; i < dof; i++) {
+    tau(i) += -rds.rb_tree_.at(i)->friction_gc_kv_ * dq(i);
   }
 };
 
@@ -295,8 +383,6 @@ void IronDomeApp::integrate() {
   lock_guard<mutex> lg(data_lock);
   dyn_tao.integrate(rio, SIMULATION_DT);
   iter++;
-
-  //if(iter == 10) exit(1);
 }
 
 void IronDomeApp::controlsLoop() {
@@ -351,14 +437,14 @@ void IronDomeApp::graphicsLoop() {
 
   // Projectiles
   map<int, chai3d::cMesh> projectile_spheres;
-  map<int, chai3d::cMesh> projectile_spheres_m;
-//  map<int, chai3d::cMesh> projectile_spheres_c;
+//  map<int, chai3d::cMesh> projectile_spheres_m;
+  map<int, chai3d::cMesh> projectile_spheres_c;
   chai3d::cMaterial projectile_mat;
   projectile_mat.setYellow();
-  chai3d::cMaterial projectile_mat_m;
-  projectile_mat_m.setGreen();
-//  chai3d::cMaterial projectile_mat_c;
-//  projectile_mat_c.setPurple();
+//  chai3d::cMaterial projectile_mat_m;
+//  projectile_mat_m.setGreen();
+  chai3d::cMaterial projectile_mat_c;
+  projectile_mat_c.setGray();
 
   long nanosec = static_cast<long>(GRAPHICS_DT * 1e9);
   const timespec ts = {0, nanosec};
@@ -382,29 +468,29 @@ void IronDomeApp::graphicsLoop() {
         chai3d::cCreateSphere(&projectile_spheres[id], 0.04);
         chai_world->addChild(&projectile_spheres[id]);
 
-        projectile_spheres_m[id] = chai3d::cMesh(&projectile_mat_m);
-        chai3d::cCreateSphere(&projectile_spheres_m[id], 0.04);
-        chai_world->addChild(&projectile_spheres_m[id]);
+//        projectile_spheres_m[id] = chai3d::cMesh(&projectile_mat_m);
+//        chai3d::cCreateSphere(&projectile_spheres_m[id], 0.04);
+//        chai_world->addChild(&projectile_spheres_m[id]);
 
-//        projectile_spheres_c[id] = chai3d::cMesh(&projectile_mat_c);
-//        chai3d::cCreateSphere(&projectile_spheres_c[id], 0.04);
-//        chai_world->addChild(&projectile_spheres_c[id]);
+        projectile_spheres_c[id] = chai3d::cMesh(&projectile_mat_c);
+        chai3d::cCreateSphere(&projectile_spheres_c[id], 0.04);
+        chai_world->addChild(&projectile_spheres_c[id]);
       }
 
       // Set sphere position
       double now = sutil::CSystemClock::getSysTime();
       Eigen::Vector3d pos = proj->getPosition(now);
-      const Eigen::Vector3d& pObs = proj->getLastObservedPosition();
       projectile_spheres[id].setLocalPos(pos(0), pos(1), pos(2));
-      projectile_spheres_m[id].setLocalPos(pObs(0), pObs(1), pObs(2));
+      //const Eigen::Vector3d& pObs = proj->getLastObservedPosition();
+      //projectile_spheres_m[id].setLocalPos(pObs(0), pObs(1), pObs(2));
 
-//      double tIntersect = proj->getIntersectionTime(collision_sphere_origin, collision_sphere_radius);
-//      if(tIntersect >= 0) {
-//        Eigen::Vector3d collision_pos = proj->getPosition(tIntersect);
-//        projectile_spheres_c[id].setLocalPos(collision_pos(0), collision_pos(1), collision_pos(2));
-////        cout << oslock << "Projectile " << proj.id << " will collide with sphere at t = "
-////             << tIntersect << " and position = " << collision_pos.transpose() << endl << osunlock;
-//      }
+      double tIntersect = proj->getIntersectionTime(COLLISION_SPHERE_POS, COLLISION_SPHERE_RADIUS);
+      if(tIntersect >= 0) {
+        Eigen::Vector3d collision_pos = proj->getPosition(tIntersect);
+        projectile_spheres_c[id].setLocalPos(collision_pos(0), collision_pos(1), collision_pos(2));
+//        cout << oslock << "Projectile " << proj.id << " will collide with sphere at t = "
+//             << tIntersect << " and position = " << collision_pos.transpose() << endl << osunlock;
+      }
     }
 
     // Remove spheres that are no longer representing active projectiles
@@ -417,23 +503,23 @@ void IronDomeApp::graphicsLoop() {
       }
     }
 
-    for(auto it = projectile_spheres_m.begin(); it != projectile_spheres_m.end();) {
-      if(active_projectiles.find((*it).first) == active_projectiles.end()) {
-        chai_world->removeChild(&(*it).second);
-        projectile_spheres_m.erase(it++);
-      } else {
-        ++it;
-      }
-    }
-
-//    for(auto it = projectile_spheres_c.begin(); it != projectile_spheres_c.end();) {
+//    for(auto it = projectile_spheres_m.begin(); it != projectile_spheres_m.end();) {
 //      if(active_projectiles.find((*it).first) == active_projectiles.end()) {
 //        chai_world->removeChild(&(*it).second);
-//        projectile_spheres_c.erase(it++);
+//        projectile_spheres_m.erase(it++);
 //      } else {
 //        ++it;
 //      }
 //    }
+
+    for(auto it = projectile_spheres_c.begin(); it != projectile_spheres_c.end();) {
+      if(active_projectiles.find((*it).first) == active_projectiles.end()) {
+        chai_world->removeChild(&(*it).second);
+        projectile_spheres_c.erase(it++);
+      } else {
+        ++it;
+      }
+    }
 
     glutMainLoopEvent();
     nanosleep(&ts, NULL);
@@ -448,6 +534,8 @@ void printHelp() {
       << "Commands:\n"
       << "  [p]rint                            Print matrices for debugging.\n"
       << "  [h]elp                             Print this help message.\n"
+      << "  [a]ctivate                         Start projectile interception.\n"
+      << "  [d]eactivate                       Stop projectile interception.\n"
       << "  [e]xit                             Exit the simulation.\n"
       << "  [m]ove x, y, z                     Move to by vector (x, y, z).\n"
       << "  [t]ranslate x, y, z                Translate by vector (x, y, z).\n"
@@ -471,6 +559,7 @@ void IronDomeApp::printState() {
        << " dq = " <<  dq.transpose() << "\n"
        << "ddq = " << ddq.transpose() << "\n\n";
 
+  cout << "M_gc = \n" << rgcm.M_gc_ << "\n\n";
   cout << "lambda_inv = \n" << lambda_inv << "\n\n";
   cout << "lambda = \n" << lambda << "\n\n";
   cout << "J = \n" << J << "\n\n";
@@ -596,6 +685,18 @@ void IronDomeApp::shellLoop() {
       cout << oslock << "Setting joint friction kv_friction = " << kv_friction
            << endl << osunlock;
       setJointFrictionDamping(kv_friction);
+
+    } else if((cmd == "activate") || (cmd == "a")) {
+      data_lock.lock();
+      paused = false;
+      data_lock.unlock();
+      cout << oslock << "Starting projecticle defense." << endl << osunlock;
+
+    } else if((cmd == "deactivate") || (cmd == "d")) {
+      data_lock.lock();
+      paused = true;
+      data_lock.unlock();
+      cout << oslock << "Stopping projecticle defense." << endl << osunlock;
 
     } else if((cmd == "print") || (cmd == "p")) {
       printState();
