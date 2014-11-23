@@ -17,7 +17,7 @@ int main(int argc, char* argv[]) {
 
   // Projectile generation parameters
   double t_avg = 3.0;
-  double v_avg = 6.0;
+  double v_avg = 6.5;
   double theta_avg = M_PI / 4;
 
   // Test timestep and end time

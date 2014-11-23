@@ -242,7 +242,7 @@ void ProjectileManager::updateActiveProjectiles() {
   // Special method of iteration because we are deleting
   for(auto it = projectiles.begin(); it != projectiles.end();) {
     if ((*it).second->getPosition(now)(0) < X_EXPIRATION) {
-      std::cout << "Removing expired projectile " << (*it).first << "\n";
+      //cout << "Removing expired projectile " << (*it).first << "\n";
       delete (*it).second;
       projectiles.erase(it++);
     } else {

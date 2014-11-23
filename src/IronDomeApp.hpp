@@ -148,4 +148,10 @@ private:
 
   // Class for managing the current state of projectiles
   ProjectileManager projectile_manager;
+
+  // State of the robot
+  int state;
+
+  // Projectile we are currently chasing
+  Projectile* target;
 };

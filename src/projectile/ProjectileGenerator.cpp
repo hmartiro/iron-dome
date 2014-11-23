@@ -12,14 +12,14 @@
 using namespace std;
 
 // Mean expected origin of projectiles
-static const Eigen::Vector3d p0_avg = {3.4, 0, 0};
+static const Eigen::Vector3d p0_avg = {4.5, 0, 0};
 
 // Gravity vector
 static const Eigen::Vector3d gravity = {0, 0, -9.81};
 
 // Initial condition per-axis standard deviation
-static const double p0_stddev = 0.3;
-static const double v0_stddev = 0.2;
+static const double p0_stddev = 0.1;
+static const double v0_stddev = 0.1;
 
 // Simulated measurement noise
 static const double pObserved_stddev = 0.05;
