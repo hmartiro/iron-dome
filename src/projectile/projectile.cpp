@@ -4,7 +4,7 @@
 
 #include <sutil/CSystemClock.hpp>
 #include <iostream>
-#include <ostreamlock.h>
+#include "../ostreamlock.h"
 
 #include "projectile.hpp"
 #include "../lowestRealRoot.hpp"
