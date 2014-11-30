@@ -48,6 +48,13 @@ public:
   void visionLoop();
 
   /**
+  * Loop to continuously send desired robot joint positions
+  * and get actual robot joint positions back
+  * Call from a separate thread.
+  */
+  void robotLoop();
+
+  /**
   * Loop to continuously get user input.
   * Call from a separate thread.
   */
@@ -99,6 +106,8 @@ private:
 
   void integrate();
 
+  bool testJointLimit(int joint_num);
+
   scl::SRobotParsed rds;     // Robot data structure
   scl::SGraphicsParsed rgr;  // Robot graphics data structure
   scl::SGcModel rgcm;        // Robot data structure with dynamic quantities
@@ -146,6 +155,8 @@ private:
 
   Eigen::VectorXd g_q; // Generalized gravity force
   Eigen::VectorXd tau; // Commanded generalized force
+
+  Eigen::VectorXd q_sensor; // Joint position read from actual robot
 
   // Class for managing the current state of projectiles
   ProjectileManager projectile_manager;

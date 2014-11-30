@@ -70,13 +70,15 @@ static const Eigen::Quaterniond START_ORIENTATION(1, 0, 1, 0);
 
 // Our sphere of interest for interceptions
 static const Eigen::Vector3d COLLISION_SPHERE_POS(0, 0, 0.338);
-static const double COLLISION_SPHERE_RADIUS = 0.7;
+static const double COLLISION_SPHERE_RADIUS = 0.8;
 #endif
 
-static const string VISION_ENDPOINT = "tcp://localhost:4242";
+static const string VISION_ENDPOINT = "tcp://192.168.1.3:4242";
+static const string ROBOT_PORT = "tcp://*:3883";
+static const string ROBOT_ENDPOINT = "tcp://192.168.1.2:4244";
 
-static const double KP_P = 5000;
-static const double KV_P = 400;
+static const double KP_P = 7000;
+static const double KV_P = 500;
 static const double KP_R = 5000;
 static const double KV_R = 400;
 
@@ -86,7 +88,9 @@ static const double DPHI_MAX_MAGNITUDE = 0.15;
 
 // Constraints on which targets to intercept
 static const double T_INTERCEPT_MIN = 0.3;
-static const double HEIGHT_INTERCEPT_MIN = 0.5;
+static const double HEIGHT_INTERCEPT_MIN = 0.6;
+
+static const double JOINT_LIMIT_EPSILON = 0.1;
 
 static const bool gravityCompEnabled = true;
 
@@ -199,8 +203,26 @@ void IronDomeApp::updateState() {
 
   lock_guard<mutex> lg(data_lock);
 
+  // rio.sensors_.q_ = q_sensor;
+
   // Update sensed generalized state
   q = rio.sensors_.q_;
+
+  
+  for (int i=0; i < dof; i++){
+      if (!testJointLimit(i)){
+          double qmax = rds.gc_pos_limit_max_[i];
+	  double qmin = rds.gc_pos_limit_min_[i];
+          if (abs(q[i] - qmax) < abs(q[i] - qmin))
+               q[i] = qmax - JOINT_LIMIT_EPSILON - 0.001;
+          else
+               q[i] = qmin + JOINT_LIMIT_EPSILON + 0.001;
+	  rio.sensors_.dq_[i] = 0;
+	  rio.sensors_.ddq_[i] = 0;
+      }
+  }
+  //rio.sensors_.q_ = q;
+
   dq = rio.sensors_.dq_;
   ddq = rio.sensors_.ddq_;
 
@@ -363,6 +385,19 @@ void IronDomeApp::computeTorque() {
   tau = J.transpose() * (lambda * F);
   //tau = tau_p + tau_r;
 
+/*
+  for (int i=0; i < dof; i++){
+    if ( !testJointLimit(i) ){
+          double qmax = rds.gc_pos_limit_max_[i];
+	  double qmin = rds.gc_pos_limit_min_[i];
+          if (abs(q[i] - qmax) < abs(q[i] - qmin))
+               tau[i] = tau[i] - 1/(qmax - q[i]) * tau[i];
+          else
+               tau[i] = tau[i] + 1/(qmin - q[i]) * tau[i];
+    }
+  }
+*/
+
   // Add gravity compensation
   if(gravityCompEnabled) tau += g_q;
 
@@ -389,6 +424,17 @@ void IronDomeApp::controlsLoop() {
 
   long nanosec = static_cast<long>(SIMULATION_DT * 1e9);
   const timespec ts = {0, nanosec};
+
+  // Initialize a 0MQ publisher socket
+  zmqpp::context context_pub, context_sub;
+  zmqpp::socket socket_pub (context_pub, zmqpp::socket_type::publish);
+  //zmqpp::socket socket_sub (context_sub, zmqpp::socket_type::subscribe);
+  
+  socket_pub.bind(ROBOT_PORT);
+  //socket_sub.connect(ROBOT_ENDPOINT);
+  //socket_sub.subscribe("");
+
+
   while(!finished) {
 
     updateState();
@@ -396,6 +442,18 @@ void IronDomeApp::controlsLoop() {
     computeTorque();
     commandTorque(tau);
     integrate();
+
+    zmqpp::message message_pub, message_sub;
+    message_pub << to_string(rio.sensors_.q_[0]) + " " + 
+               to_string(rio.sensors_.q_[1]) + " " +
+               to_string(rio.sensors_.q_[2]) + " " +
+               to_string(-rio.sensors_.q_[3]) + " " +
+               to_string(rio.sensors_.q_[4]) + " " +
+               to_string(rio.sensors_.q_[5]) + " " +
+	       to_string(rio.sensors_.q_[6]);
+
+    socket_pub.send(message_pub);
+    
 
     nanosleep(&ts, NULL);
     sutil::CSystemClock::tick(SIMULATION_DT);
@@ -718,4 +776,47 @@ void IronDomeApp::shellLoop() {
     // Clear the error flag
     cin.clear();
   }
+}
+
+void IronDomeApp::robotLoop(){
+  // Initialize a 0MQ publisher socket
+  zmqpp::context context_sub;
+  //zmqpp::socket socket_pub (context_pub, zmqpp::socket_type::publish);
+  zmqpp::socket socket_sub (context_sub, zmqpp::socket_type::subscribe);
+  
+  //socket_pub.bind(ROBOT_PORT);
+  socket_sub.connect(ROBOT_ENDPOINT);
+  socket_sub.subscribe("");
+  
+  long nanosec = static_cast<long>(SIMULATION_DT * 1e9);
+  const timespec ts = {0, nanosec};
+ while(!finished){
+    zmqpp::message message_sub;
+
+   
+    socket_sub.receive(message_sub);
+    string msg;
+    message_sub >> msg;
+    stringstream msg_stream(msg);
+
+    // Read the message into the variables
+    //cout << oslock << msg << endl << osunlock;
+    lock_guard<mutex> lg(data_lock);
+    msg_stream >> rio.sensors_.q_[0] >> rio.sensors_.q_[1] >> rio.sensors_.q_[2] >> rio.sensors_.q_[3]
+               >> rio.sensors_.q_[4] >> rio.sensors_.q_[5] >> rio.sensors_.q_[6];
+    rio.sensors_.q_[3] = -rio.sensors_.q_[3];
+
+    nanosleep(&ts, NULL);
+  }
+  
+}
+
+bool IronDomeApp::testJointLimit(int joint_num){
+   if ( q[joint_num] < rds.gc_pos_limit_max_[joint_num] - JOINT_LIMIT_EPSILON &&
+        q[joint_num] > rds.gc_pos_limit_min_[joint_num] + JOINT_LIMIT_EPSILON)
+   {
+	return true;
+   }
+   else
+        return false;
 }
