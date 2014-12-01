@@ -39,8 +39,10 @@ static const string robot_name("iiwaBot");
 static const string graphics_name("iiwaBotStdView");
 static const string config_file("./specs/iiwa/iiwaCfg.xml");
 
-static const Eigen::Vector3d START_POSITION(0.2, 0, 0.95);
-static const Eigen::Quaterniond START_ORIENTATION(0.92, 0, 0.38, 0);
+//static const Eigen::Vector3d START_POSITION(0.2, 0, 0.95);
+//static const Eigen::Quaterniond START_ORIENTATION(0.92, 0, 0.38, 0);
+static const Eigen::Vector3d START_POSITION(0.6, 0, 0.45);
+static const Eigen::Quaterniond START_ORIENTATION(.01, 1, 0, 0);
 
 // Our sphere of interest for interceptions
 static const Eigen::Vector3d COLLISION_SPHERE_POS(0, 0, 0.5);
@@ -70,15 +72,16 @@ static const Eigen::Quaterniond START_ORIENTATION(1, 0, 1, 0);
 
 // Our sphere of interest for interceptions
 static const Eigen::Vector3d COLLISION_SPHERE_POS(0, 0, 0.338);
-static const double COLLISION_SPHERE_RADIUS = 0.7;
+static const double COLLISION_SPHERE_RADIUS = 0.8;
 #endif
 
-//static const string VISION_ENDPOINT = "tcp://171.64.70.154:4242";
 static const string VISION_ENDPOINT = "tcp://localhost:4242";
+static const string ROBOT_PORT = "tcp://*:3883";
+static const string ROBOT_ENDPOINT = "tcp://localhost:4244";
 
-static const double KP_P = 6000;
-static const double KV_P = 400;
-static const double KP_R = 6000;
+static const double KP_P = 7000;
+static const double KV_P = 500;
+static const double KP_R = 5000;
 static const double KV_R = 400;
 
 // How far towards the desired position to command
@@ -87,7 +90,9 @@ static const double DPHI_MAX_MAGNITUDE = 0.20;
 
 // Constraints on which targets to intercept
 static const double T_INTERCEPT_MIN = 0.3;
-static const double HEIGHT_INTERCEPT_MIN = 0.5;
+static const double HEIGHT_INTERCEPT_MIN = 0.6;
+
+static const double JOINT_LIMIT_EPSILON = 0.1;
 
 static const bool gravityCompEnabled = true;
 
@@ -118,6 +123,8 @@ IronDomeApp::IronDomeApp() : t(0), t_sim(0), iter(0), finished(false),
   // Set default joint positions
   for(unsigned int i = 0; i < rds.dof_; ++i)
     rio.sensors_.q_(i) = rds.rb_tree_.at(i)->joint_default_pos_;
+
+  q_sensor = rio.sensors_.q_;
 
   cout << fixed << setprecision(3);
 
@@ -198,6 +205,68 @@ void IronDomeApp::setJointFrictionDamping(double kv_friction) {
   for(int i = 0; i < dof; i++) {
     rds.rb_tree_.at(i)->friction_gc_kv_ = kv_friction;
   }
+}
+
+void IronDomeApp::updateState() {
+
+  lock_guard<mutex> lg(data_lock);
+
+  // Update sensor values directly from robot
+  rio.sensors_.q_ = q_sensor;
+
+  // Update sensed generalized state
+  q = rio.sensors_.q_;
+
+  // TODO
+//  for (int i=0; i < dof; i++){
+//      if (!testJointLimit(i)){
+//          double qmax = rds.gc_pos_limit_max_[i];
+//          double qmin = rds.gc_pos_limit_min_[i];
+//          if (abs(q[i] - qmax) < abs(q[i] - qmin))
+//               q[i] = qmax - JOINT_LIMIT_EPSILON - 0.001;
+//          else
+//               q[i] = qmin + JOINT_LIMIT_EPSILON + 0.001;
+//        rio.sensors_.dq_[i] = 0;
+//        rio.sensors_.ddq_[i] = 0;
+//      }
+//  }
+  //rio.sensors_.q_ = q;
+
+  dq = rio.sensors_.dq_;
+  ddq = rio.sensors_.ddq_;
+
+  // Compute kinematic quantities
+  dyn_scl.computeTransformsForAllLinks(rgcm.rbdyn_tree_, q);
+  dyn_scl.computeJacobianWithTransforms(J, *ee, q, op_pos);
+
+  lambda_inv = J * rgcm.M_gc_inv_ * J.transpose();
+  lambda = lambda_inv.inverse();
+
+  g_q = rgcm.force_gc_grav_;
+
+  x_c = ee->T_o_lnk_ * op_pos;
+  R_c = ee->T_o_lnk_.rotation();
+
+  v = J.block(0, 0, 3, dof) * dq;
+  omega = J.block(3, 0, 3, dof) * dq;
+
+  double t_new = sutil::CSystemClock::getSysTime();
+  double t_sim_new = sutil::CSystemClock::getSimTime();
+  dt_sim = 1000 * (t_sim_new - t_sim);
+  dt_real = 1000 * (t_new - t);
+
+  t = t_new;
+  t_sim = t_sim_new;
+}
+
+void IronDomeApp::commandTorque(Eigen::VectorXd torque) {
+  lock_guard<mutex> lg(data_lock);
+  rio.actuators_.force_gc_commanded_ = torque;
+}
+
+bool IronDomeApp::isPaused() {
+  lock_guard<mutex> lg(data_lock);
+  return paused;
 }
 
 void IronDomeApp::stateMachine() {
@@ -288,38 +357,38 @@ void IronDomeApp::stateMachine() {
   }
 }
 
-void IronDomeApp::updateState() {
-
-  lock_guard<mutex> lg(data_lock);
-
-  // Update sensed generalized state
-  q = rio.sensors_.q_;
-  dq = rio.sensors_.dq_;
-  ddq = rio.sensors_.ddq_;
-
-  // Compute kinematic quantities
-  dyn_scl.computeTransformsForAllLinks(rgcm.rbdyn_tree_, q);
-  dyn_scl.computeJacobianWithTransforms(J, *ee, q, op_pos);
-
-  lambda_inv = J * rgcm.M_gc_inv_ * J.transpose();
-  lambda = lambda_inv.inverse();
-
-  g_q = rgcm.force_gc_grav_;
-
-  x_c = ee->T_o_lnk_ * op_pos;
-  R_c = ee->T_o_lnk_.rotation();
-
-  v = J.block(0, 0, 3, dof) * dq;
-  omega = J.block(3, 0, 3, dof) * dq;
-
-  double t_new = sutil::CSystemClock::getSysTime();
-  double t_sim_new = sutil::CSystemClock::getSimTime();
-  dt_sim = 1000 * (t_sim_new - t_sim);
-  dt_real = 1000 * (t_new - t);
-
-  t = t_new;
-  t_sim = t_sim_new;
-}
+//void IronDomeApp::updateState() {
+//
+//  lock_guard<mutex> lg(data_lock);
+//
+//  // Update sensed generalized state
+//  q = rio.sensors_.q_;
+//  dq = rio.sensors_.dq_;
+//  ddq = rio.sensors_.ddq_;
+//
+//  // Compute kinematic quantities
+//  dyn_scl.computeTransformsForAllLinks(rgcm.rbdyn_tree_, q);
+//  dyn_scl.computeJacobianWithTransforms(J, *ee, q, op_pos);
+//
+//  lambda_inv = J * rgcm.M_gc_inv_ * J.transpose();
+//  lambda = lambda_inv.inverse();
+//
+//  g_q = rgcm.force_gc_grav_;
+//
+//  x_c = ee->T_o_lnk_ * op_pos;
+//  R_c = ee->T_o_lnk_.rotation();
+//
+//  v = J.block(0, 0, 3, dof) * dq;
+//  omega = J.block(3, 0, 3, dof) * dq;
+//
+//  double t_new = sutil::CSystemClock::getSysTime();
+//  double t_sim_new = sutil::CSystemClock::getSimTime();
+//  dt_sim = 1000 * (t_sim_new - t_sim);
+//  dt_real = 1000 * (t_new - t);
+//
+//  t = t_new;
+//  t_sim = t_sim_new;
+//}
 
 
 void IronDomeApp::fullTaskSpaceControl() {
@@ -471,11 +540,6 @@ void IronDomeApp::applyJointFriction() {
   }
 }
 
-void IronDomeApp::commandTorque(Eigen::VectorXd torque) {
-  lock_guard<mutex> lg(data_lock);
-  rio.actuators_.force_gc_commanded_ = torque;
-}
-
 void IronDomeApp::integrate() {
 
   lock_guard<mutex> lg(data_lock);
@@ -483,15 +547,17 @@ void IronDomeApp::integrate() {
   iter++;
 }
 
-bool IronDomeApp::isPaused() {
-  lock_guard<mutex> lg(data_lock);
-  return paused;
-}
-
 void IronDomeApp::controlsLoop() {
 
   long nanosec = static_cast<long>(SIMULATION_DT * 1e9);
   const timespec ts = {0, nanosec};
+
+  // Initialize a 0MQ publisher socket
+  zmqpp::context context;
+  zmqpp::socket socket_pub(context, zmqpp::socket_type::publish);
+
+  socket_pub.bind(ROBOT_PORT);
+
   while(!finished) {
 
     updateState();
@@ -506,13 +572,35 @@ void IronDomeApp::controlsLoop() {
     if(gravityCompEnabled) applyGravityCompensation();
 
     // Clamp the commanded torques
-    //applyTorqueLimits();
+    applyTorqueLimits();
 
     // Simulate joint friction
     applyJointFriction();
 
     commandTorque(tau);
     integrate();
+
+    zmqpp::message msg;
+//    msg << to_string(rio.sensors_.q_[0]) + " " +
+//               to_string(rio.sensors_.q_[1]) + " " +
+//               to_string(rio.sensors_.q_[2]) + " " +
+//               to_string(-rio.sensors_.q_[3]) + " " +
+//               to_string(rio.sensors_.q_[4]) + " " +
+//               to_string(rio.sensors_.q_[5]) + " " +
+//               to_string(rio.sensors_.q_[6]);
+    msg << to_string(x_d[0]) + " " +
+           to_string(x_d[1]) + " " +
+           to_string(x_d[2]) + " " +
+           to_string(R_d(0, 0)) + " " +
+           to_string(R_d(1, 0)) + " " +
+           to_string(R_d(2, 0)) + " " +
+           to_string(R_d(0, 1)) + " " +
+           to_string(R_d(1, 1)) + " " +
+           to_string(R_d(2, 1)) + " " +
+           to_string(R_d(0, 2)) + " " +
+           to_string(R_d(1, 2)) + " " +
+           to_string(R_d(2, 2));
+    socket_pub.send(msg);
 
     nanosleep(&ts, NULL);
     sutil::CSystemClock::tick(SIMULATION_DT);
@@ -691,7 +779,7 @@ void IronDomeApp::visionLoop() {
 
   // Initialize a 0MQ subscribe socket
   zmqpp::context context;
-  zmqpp::socket socket (context, zmqpp::socket_type::subscribe);
+  zmqpp::socket socket(context, zmqpp::socket_type::subscribe);
   socket.subscribe("");
 
   // Connect to the endpoint providing vision data
@@ -836,4 +924,39 @@ void IronDomeApp::shellLoop() {
     // Clear the error flag
     cin.clear();
   }
+}
+
+void IronDomeApp::robotLoop(){
+
+  zmqpp::context context;
+  zmqpp::socket socket_sub (context, zmqpp::socket_type::subscribe);
+
+  socket_sub.connect(ROBOT_ENDPOINT);
+  socket_sub.subscribe("");
+
+  while(!finished){
+
+    zmqpp::message message_sub;
+    socket_sub.receive(message_sub);
+    string msg;
+    message_sub >> msg;
+    stringstream msg_stream(msg);
+
+    // Read the message into the variables
+    //cout << oslock << msg << endl << osunlock;
+    data_lock.lock();
+    msg_stream >> q_sensor[0] >> q_sensor[1] >> q_sensor[2] >> q_sensor[3]
+               >> q_sensor[4] >> q_sensor[5] >> q_sensor[6];
+    q_sensor[3] = -q_sensor[3];
+    data_lock.unlock();
+  }
+}
+
+bool IronDomeApp::testJointLimit(int joint_num){
+   if ( q[joint_num] < rds.gc_pos_limit_max_[joint_num] - JOINT_LIMIT_EPSILON &&
+        q[joint_num] > rds.gc_pos_limit_min_[joint_num] + JOINT_LIMIT_EPSILON)
+   {
+     return true;
+   }
+   else return false;
 }

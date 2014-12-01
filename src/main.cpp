@@ -8,12 +8,13 @@
 
 using namespace std;
 
-static const int NUM_THREADS = 4;
+static const int NUM_THREADS = 5;
 
 static const int CONTROL_THREAD = 0;
 static const int GRAPHICS_THREAD = 1;
 static const int VISION_THREAD = 2;
 static const int SHELL_THREAD = 3;
+static const int ROBOT_THREAD = 4;
 
 int main(int argc, char* argv[]) {
 
@@ -49,7 +50,13 @@ int main(int argc, char* argv[]) {
       cout << oslock << "Shell thread started!" << endl << osunlock;
       app.shellLoop();
       cout << oslock << "Shell thread finished!" << endl << osunlock;
+    } else if (thread_id == ROBOT_THREAD) {
+
+      cout << oslock << "Robot thread started!" << endl << osunlock;
+      app.robotLoop();
+      cout << oslock << "Robot thread finished!" << endl << osunlock;
     }
+ 
   }
 
   cout << oslock << "Successfully exiting." << endl << osunlock;
