@@ -86,9 +86,28 @@ private:
   void updateState();
 
   /**
-  * Compute the commanded torque.
+  * Compute torque based on 6DOF task space PD control from the
+  * position and velocity error vectors.
   */
-  void computeTorque();
+  void fullTaskSpaceControl();
+
+  /**
+  * Same as fullTaskSpaceControl, but the position and orientation error
+  * vectors dx and dphi are clamped at a max magnitude. This is analogous
+  * to commanding the robot to move in small increments.
+  */
+  void incrementalTaskSpaceControl();
+
+  /**
+  * Calculate the position and orientation error vectors in task space, then
+  * use the Jacobian transpose to convert them to joint space error vectors. Then,
+  * apply PD control in joint space.
+  */
+  void resolvedMotionRateControl();
+
+  void applyTorqueLimits();
+  void applyJointFriction();
+  void applyGravityCompensation();
 
   /**
   * State machine that sets the desired position and orientation.
@@ -146,6 +165,8 @@ private:
 
   Eigen::VectorXd g_q; // Generalized gravity force
   Eigen::VectorXd tau; // Commanded generalized force
+
+  Eigen::VectorXd kp_q, kv_q; // Gains in joint space control
 
   // Class for managing the current state of projectiles
   ProjectileManager projectile_manager;

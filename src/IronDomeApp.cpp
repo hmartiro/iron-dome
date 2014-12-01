@@ -73,16 +73,17 @@ static const Eigen::Vector3d COLLISION_SPHERE_POS(0, 0, 0.338);
 static const double COLLISION_SPHERE_RADIUS = 0.7;
 #endif
 
+//static const string VISION_ENDPOINT = "tcp://171.64.70.154:4242";
 static const string VISION_ENDPOINT = "tcp://localhost:4242";
 
-static const double KP_P = 5000;
+static const double KP_P = 6000;
 static const double KV_P = 400;
-static const double KP_R = 5000;
+static const double KP_R = 6000;
 static const double KV_R = 400;
 
 // How far towards the desired position to command
-static const double DX_MAX_MAGNITUDE = 0.07;
-static const double DPHI_MAX_MAGNITUDE = 0.15;
+static const double DX_MAX_MAGNITUDE = 0.09;
+static const double DPHI_MAX_MAGNITUDE = 0.20;
 
 // Constraints on which targets to intercept
 static const double T_INTERCEPT_MIN = 0.3;
@@ -121,6 +122,10 @@ IronDomeApp::IronDomeApp() : t(0), t_sim(0), iter(0), finished(false),
   cout << fixed << setprecision(3);
 
   dof = rio.dof_;
+
+  // TODO read in these from XML file?
+  kp_q = Eigen::VectorXd(dof);
+  kv_q = Eigen::VectorXd(dof);
 
   ee = rgcm.rbdyn_tree_.at("end-effector");
 
@@ -195,49 +200,6 @@ void IronDomeApp::setJointFrictionDamping(double kv_friction) {
   }
 }
 
-void IronDomeApp::updateState() {
-
-  lock_guard<mutex> lg(data_lock);
-
-  // Update sensed generalized state
-  q = rio.sensors_.q_;
-  dq = rio.sensors_.dq_;
-  ddq = rio.sensors_.ddq_;
-
-  // Compute kinematic quantities
-  dyn_scl.computeTransformsForAllLinks(rgcm.rbdyn_tree_, q);
-  dyn_scl.computeJacobianWithTransforms(J, *ee, q, op_pos);
-
-  lambda_inv = J * rgcm.M_gc_inv_ * J.transpose();
-  lambda = lambda_inv.inverse();
-
-  g_q = rgcm.force_gc_grav_;
-
-  x_c = ee->T_o_lnk_ * op_pos;
-  R_c = ee->T_o_lnk_.rotation();
-
-  v = J.block(0, 0, 3, dof) * dq;
-  omega = J.block(3, 0, 3, dof) * dq;
-
-  double t_new = sutil::CSystemClock::getSysTime();
-  double t_sim_new = sutil::CSystemClock::getSimTime();
-  dt_sim = 1000 * (t_sim_new - t_sim);
-  dt_real = 1000 * (t_new - t);
-
-  t = t_new;
-  t_sim = t_sim_new;
-}
-
-void IronDomeApp::commandTorque(Eigen::VectorXd torque) {
-  lock_guard<mutex> lg(data_lock);
-  rio.actuators_.force_gc_commanded_ = torque;
-}
-
-bool IronDomeApp::isPaused() {
-  lock_guard<mutex> lg(data_lock);
-  return paused;
-}
-
 void IronDomeApp::stateMachine() {
 
   //cout << oslock << "State: " << state << endl << osunlock;
@@ -277,9 +239,6 @@ void IronDomeApp::stateMachine() {
             best_target = proj;
           }
         }
-
-
-
       } else {
         // TODO compare proj to best_target
         // if better target, best_target = proj
@@ -329,7 +288,75 @@ void IronDomeApp::stateMachine() {
   }
 }
 
-void IronDomeApp::computeTorque() {
+void IronDomeApp::updateState() {
+
+  lock_guard<mutex> lg(data_lock);
+
+  // Update sensed generalized state
+  q = rio.sensors_.q_;
+  dq = rio.sensors_.dq_;
+  ddq = rio.sensors_.ddq_;
+
+  // Compute kinematic quantities
+  dyn_scl.computeTransformsForAllLinks(rgcm.rbdyn_tree_, q);
+  dyn_scl.computeJacobianWithTransforms(J, *ee, q, op_pos);
+
+  lambda_inv = J * rgcm.M_gc_inv_ * J.transpose();
+  lambda = lambda_inv.inverse();
+
+  g_q = rgcm.force_gc_grav_;
+
+  x_c = ee->T_o_lnk_ * op_pos;
+  R_c = ee->T_o_lnk_.rotation();
+
+  v = J.block(0, 0, 3, dof) * dq;
+  omega = J.block(3, 0, 3, dof) * dq;
+
+  double t_new = sutil::CSystemClock::getSysTime();
+  double t_sim_new = sutil::CSystemClock::getSimTime();
+  dt_sim = 1000 * (t_sim_new - t_sim);
+  dt_real = 1000 * (t_new - t);
+
+  t = t_new;
+  t_sim = t_sim_new;
+}
+
+
+void IronDomeApp::fullTaskSpaceControl() {
+
+  lock_guard<mutex> lg(data_lock);
+
+  // Position error vector
+  dx = x_c - x_d;
+
+  // Calculate the position force
+  F_p = -kp_p * dx - kv_p * v;
+
+  // Rotational error vector
+  dphi = -0.5 * (
+      R_c.col(0).cross(R_d.col(0))
+          + R_c.col(1).cross(R_d.col(1))
+          + R_c.col(2).cross(R_d.col(2))
+  );
+
+  // Calculate the rotation force
+  F_r = -kp_r * dphi - kv_r * omega;
+
+  // Superimpose the forces
+  F << F_p, F_r;
+
+  tau = J.transpose() * (lambda * F);
+};
+
+template<typename _Matrix_Type_>
+_Matrix_Type_ pseudoInverse(const _Matrix_Type_ &a, double epsilon = std::numeric_limits<double>::epsilon())
+{
+  Eigen::JacobiSVD< _Matrix_Type_ > svd(a ,Eigen::ComputeThinU | Eigen::ComputeThinV);
+  double tolerance = epsilon * std::max(a.cols(), a.rows()) *svd.singularValues().array().abs()(0);
+  return svd.matrixV() *  (svd.singularValues().array().abs() > tolerance).select(svd.singularValues().array().inverse(), 0).matrix().asDiagonal() * svd.matrixU().adjoint();
+}
+
+void IronDomeApp::incrementalTaskSpaceControl() {
 
   lock_guard<mutex> lg(data_lock);
 
@@ -361,28 +388,104 @@ void IronDomeApp::computeTorque() {
   F << F_p, F_r;
 
   tau = J.transpose() * (lambda * F);
-  //tau = tau_p + tau_r;
+};
 
-  // Add gravity compensation
-  if(gravityCompEnabled) tau += g_q;
+void IronDomeApp::resolvedMotionRateControl() {
 
-  // Apply torque limits
+  lock_guard<mutex> lg(data_lock);
+
+  // Position error vector
+  dx = x_c - x_d;
+
+  // Clamp the position error vector
+  double dist_p = min(dx.norm(), DX_MAX_MAGNITUDE);
+  dx = dx.normalized() * dist_p;
+
+  // Rotational error vector
+  dphi = -0.5 * (
+      R_c.col(0).cross(R_d.col(0))
+          + R_c.col(1).cross(R_d.col(1))
+          + R_c.col(2).cross(R_d.col(2))
+  );
+
+  // Clamp the rotation error vector
+  double dist_r = min(dphi.norm(), DPHI_MAX_MAGNITUDE);
+  dphi = dphi.normalized() * dist_r;
+
+  dphi *= 0.3;
+
+  // Combined rate in task space
+  Eigen::VectorXd v_task(7);
+  v_task << dx, dphi;
+
+  double lambda = 0.1;
+
+  Eigen::JacobiSVD<Eigen::MatrixXd> J_svd(J, Eigen::ComputeThinU | Eigen::ComputeThinV);
+  auto sv = J_svd.singularValues();
+  Eigen::MatrixXd J_opt(6, dof);
+  const Eigen::MatrixXd& U = J_svd.matrixU();
+  const Eigen::MatrixXd& V = J_svd.matrixV();
+
+  for(int i = 0; i < sv.size(); i++) {
+    J_opt += (sv(i) / (sv(i) * sv(i) + lambda * lambda)) * V.col(i) * U.col(i).transpose();
+  }
+
+  // Combined rate in joint space
+  Eigen::VectorXd v_joint = J.transpose() * v_task;
+
+  // Gains
+  double kp_q_base = 400;
+  Eigen::VectorXd kp_q_scale(dof);
+  for(int i = 0; i < dof; i++) {
+    double torque_range = rds.rb_tree_.at(i)->force_gc_lim_upper_
+        - rds.rb_tree_.at(i)->force_gc_lim_lower_;
+    kp_q(i) = kp_q_base * torque_range;
+    kv_q(i) = sqrt(kp_q(i)) * 1;
+  }
+
+//  cout << oslock << "kp_q: " << kp_q.transpose() <<
+//      "\nkv_q: " << kv_q.transpose() << endl << osunlock;
+
+  tau = - kp_q.array() * v_joint.array() - kv_q.array() * dq.array();
+
+//  cout << oslock <<
+//      "v_task: " << v_task.transpose() << "\nv_joint: " << v_joint.transpose()
+//      << "\ntau: " << tau.transpose()
+//      << endl << osunlock;
+}
+
+void IronDomeApp::applyGravityCompensation() {
+  tau += g_q;
+}
+
+void IronDomeApp::applyTorqueLimits() {
   for(int i = 0; i < dof; i++) {
     tau(i) = min(tau(i), rds.rb_tree_.at(i)->force_gc_lim_upper_);
     tau(i) = max(tau(i), rds.rb_tree_.at(i)->force_gc_lim_lower_);
   }
+}
 
-  // Add damping to simulate friction
+void IronDomeApp::applyJointFriction() {
   for(int i = 0; i < dof; i++) {
     tau(i) += -rds.rb_tree_.at(i)->friction_gc_kv_ * dq(i);
   }
-};
+}
+
+void IronDomeApp::commandTorque(Eigen::VectorXd torque) {
+  lock_guard<mutex> lg(data_lock);
+  rio.actuators_.force_gc_commanded_ = torque;
+}
 
 void IronDomeApp::integrate() {
 
   lock_guard<mutex> lg(data_lock);
   dyn_tao.integrate(rio, SIMULATION_DT);
   iter++;
+}
+
+bool IronDomeApp::isPaused() {
+  lock_guard<mutex> lg(data_lock);
+  return paused;
 }
 
 void IronDomeApp::controlsLoop() {
@@ -393,7 +496,21 @@ void IronDomeApp::controlsLoop() {
 
     updateState();
     stateMachine();
-    computeTorque();
+
+    // Compute the ideal joint torques based on some algorithm
+    //fullTaskSpaceControl();
+    incrementalTaskSpaceControl();
+    //resolvedMotionRateControl();
+
+    // Add gravity compensation in joint space
+    if(gravityCompEnabled) applyGravityCompensation();
+
+    // Clamp the commanded torques
+    //applyTorqueLimits();
+
+    // Simulate joint friction
+    applyJointFriction();
+
     commandTorque(tau);
     integrate();
 
@@ -437,12 +554,12 @@ void IronDomeApp::graphicsLoop() {
 
   // Projectiles
   map<int, chai3d::cMesh> projectile_spheres;
-//  map<int, chai3d::cMesh> projectile_spheres_m;
+  map<int, chai3d::cMesh> projectile_spheres_m;
   map<int, chai3d::cMesh> projectile_spheres_c;
   chai3d::cMaterial projectile_mat;
   projectile_mat.setYellow();
-//  chai3d::cMaterial projectile_mat_m;
-//  projectile_mat_m.setGreen();
+  chai3d::cMaterial projectile_mat_m;
+  projectile_mat_m.setGreen();
   chai3d::cMaterial projectile_mat_c;
   projectile_mat_c.setGray();
 
@@ -468,9 +585,9 @@ void IronDomeApp::graphicsLoop() {
         chai3d::cCreateSphere(&projectile_spheres[id], 0.04);
         chai_world->addChild(&projectile_spheres[id]);
 
-//        projectile_spheres_m[id] = chai3d::cMesh(&projectile_mat_m);
-//        chai3d::cCreateSphere(&projectile_spheres_m[id], 0.04);
-//        chai_world->addChild(&projectile_spheres_m[id]);
+        projectile_spheres_m[id] = chai3d::cMesh(&projectile_mat_m);
+        chai3d::cCreateSphere(&projectile_spheres_m[id], 0.04);
+        chai_world->addChild(&projectile_spheres_m[id]);
 
         projectile_spheres_c[id] = chai3d::cMesh(&projectile_mat_c);
         chai3d::cCreateSphere(&projectile_spheres_c[id], 0.04);
@@ -481,8 +598,8 @@ void IronDomeApp::graphicsLoop() {
       double now = sutil::CSystemClock::getSysTime();
       Eigen::Vector3d pos = proj->getPosition(now);
       projectile_spheres[id].setLocalPos(pos(0), pos(1), pos(2));
-      //const Eigen::Vector3d& pObs = proj->getLastObservedPosition();
-      //projectile_spheres_m[id].setLocalPos(pObs(0), pObs(1), pObs(2));
+      const Eigen::Vector3d& pObs = proj->getLastObservedPosition();
+      projectile_spheres_m[id].setLocalPos(pObs(0), pObs(1), pObs(2));
 
       double tIntersect = proj->getIntersectionTime(COLLISION_SPHERE_POS, COLLISION_SPHERE_RADIUS);
       if(tIntersect >= 0) {
@@ -503,14 +620,14 @@ void IronDomeApp::graphicsLoop() {
       }
     }
 
-//    for(auto it = projectile_spheres_m.begin(); it != projectile_spheres_m.end();) {
-//      if(active_projectiles.find((*it).first) == active_projectiles.end()) {
-//        chai_world->removeChild(&(*it).second);
-//        projectile_spheres_m.erase(it++);
-//      } else {
-//        ++it;
-//      }
-//    }
+    for(auto it = projectile_spheres_m.begin(); it != projectile_spheres_m.end();) {
+      if(active_projectiles.find((*it).first) == active_projectiles.end()) {
+        chai_world->removeChild(&(*it).second);
+        projectile_spheres_m.erase(it++);
+      } else {
+        ++it;
+      }
+    }
 
     for(auto it = projectile_spheres_c.begin(); it != projectile_spheres_c.end();) {
       if(active_projectiles.find((*it).first) == active_projectiles.end()) {
@@ -592,6 +709,7 @@ void IronDomeApp::visionLoop() {
     string msg;
     message >> msg;
     stringstream msg_stream(msg);
+    cout << "Message: " << oslock << msg << endl << osunlock;
 
     // Read the message into the variables
     msg_stream >> id >> time >> x >> y >> z;
