@@ -9,6 +9,7 @@
 
 #include <mutex>
 #include <Eigen/Dense>
+#include <zmqpp/zmqpp.hpp>
 
 #include <scl/DataTypes.hpp>
 #include <scl/data_structs/SGcModel.hpp>
@@ -121,11 +122,22 @@ private:
   */
   void stateMachine();
 
+  /**
+  * Command task-space position and orientation to the physical robot.
+  */
+  void sendToRobot(zmqpp::socket& robot_pub);
+
   void commandTorque(Eigen::VectorXd torque);
 
   void integrate();
 
   bool testJointLimit(int joint_num);
+
+  /**
+  * Apply torques in task space to keep the joints away from their
+  * limits.
+  */
+  void applyJointLimitPotential();
 
   scl::SRobotParsed rds;     // Robot data structure
   scl::SGraphicsParsed rgr;  // Robot graphics data structure
@@ -168,9 +180,8 @@ private:
   Eigen::Vector3d F_p, F_r;          // Task space forces, pos/rot
   Eigen::Vector6d F;
   Eigen::MatrixXd lambda, lambda_inv; // Generalized mass matrix and inverse
-  Eigen::MatrixXd lambda_p_inv, lambda_p; // Generalized mass, pos/rot
-  Eigen::MatrixXd lambda_r_inv, lambda_r; // Generalized inverse mass, pos/rot
-  Eigen::VectorXd tau_p, tau_r; // Generalized forces, pos/rot
+  Eigen::VectorXd tau_jlim; // Restoring torque for joint limit avoidance
+  Eigen::VectorXd q_sat; // Joint limit saturation
 
   Eigen::VectorXd g_q; // Generalized gravity force
   Eigen::VectorXd tau; // Commanded generalized force
@@ -178,6 +189,8 @@ private:
   Eigen::VectorXd kp_q, kv_q; // Gains in joint space control
 
   Eigen::VectorXd q_sensor; // Joint position read from actual robot
+
+  Eigen::Vector3d x_inc; // Incremental position towards goal
 
   // Class for managing the current state of projectiles
   ProjectileManager projectile_manager;
@@ -190,4 +203,7 @@ private:
 
   // Whether the projectile interception is paused
   bool paused;
+
+  // Whether we are simulating or controlling the real robot
+  bool simulation;
 };

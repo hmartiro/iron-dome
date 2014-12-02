@@ -7,14 +7,16 @@
 #include <iostream>
 #include <string>
 #include <iomanip>
+#include <math.h>
 
-#include <zmqpp/zmqpp.hpp>
 #include <sutil/CSystemClock.hpp>
 
 #include "ostreamlock.hpp"
 #include "IronDomeApp.hpp"
 
 using namespace std;
+
+static const double PI = 3.14159265;
 
 static const double SIMULATION_DT = 0.0001;
 static const double GRAPHICS_DT = 0.020;
@@ -39,14 +41,19 @@ static const string robot_name("iiwaBot");
 static const string graphics_name("iiwaBotStdView");
 static const string config_file("./specs/iiwa/iiwaCfg.xml");
 
-//static const Eigen::Vector3d START_POSITION(0.2, 0, 0.95);
-//static const Eigen::Quaterniond START_ORIENTATION(0.92, 0, 0.38, 0);
-static const Eigen::Vector3d START_POSITION(0.6, 0, 0.45);
-static const Eigen::Quaterniond START_ORIENTATION(.01, 1, 0, 0);
+static const Eigen::Vector3d READY_POSITION(0.65, 0, 0.85);
+static const Eigen::Quaterniond READY_ORIENTATION(0.92, 0, 0.38, 0);
+
+static const Eigen::Vector3d START_POSITION(0.6, 0, 0.58);
+//static const Eigen::Quaterniond START_ORIENTATION(.01, 1, 0, 0);
+
+Eigen::Matrix3d START_ROTATION;
 
 // Our sphere of interest for interceptions
-static const Eigen::Vector3d COLLISION_SPHERE_POS(0, 0, 0.5);
-static const double COLLISION_SPHERE_RADIUS = 0.7;
+//static const Eigen::Vector3d COLLISION_SPHERE_POS(0, 0, 0.5);
+//static const double COLLISION_SPHERE_RADIUS = 0.75;
+static const Eigen::Vector3d COLLISION_SPHERE_POS(-.4, 0, 0.1);
+static const double COLLISION_SPHERE_RADIUS = 1.3;
 #endif
 
 #ifdef KUKA
@@ -90,15 +97,19 @@ static const double DPHI_MAX_MAGNITUDE = 0.20;
 
 // Constraints on which targets to intercept
 static const double T_INTERCEPT_MIN = 0.3;
-static const double HEIGHT_INTERCEPT_MIN = 0.6;
+static const double Z_INTERCEPT_MIN = 0.6;
+static const double X_INTERCEPT_MIN = 0.2;
+static const double Y_INTERCEPT_WIDTH = 0.4;
 
-static const double JOINT_LIMIT_EPSILON = 0.1;
+static const double JOINT_LIMIT_EPSILON = 3 * PI / 180;
+
+static const vector<double> K_JLIM = {20, 20, 20, 20, 20, 20, 20};
 
 static const bool gravityCompEnabled = true;
 
 IronDomeApp::IronDomeApp() : t(0), t_sim(0), iter(0), finished(false),
         op_pos(OP_POS), kp_p(KP_P), kv_p(KV_P), kp_r(KP_R), kv_r(KV_R),
-        state(STATE_UNINIT), paused(true) {
+        state(STATE_UNINIT), paused(true), simulation(true) {
 
   // Load robot spec
   bool flag = parser.readRobotFromFile(config_file,"./specs/", robot_name, rds);
@@ -130,14 +141,18 @@ IronDomeApp::IronDomeApp() : t(0), t_sim(0), iter(0), finished(false),
 
   dof = rio.dof_;
 
+  tau_jlim = Eigen::VectorXd(dof);
+
   // TODO read in these from XML file?
   kp_q = Eigen::VectorXd(dof);
   kv_q = Eigen::VectorXd(dof);
 
   ee = rgcm.rbdyn_tree_.at("end-effector");
 
+  START_ROTATION << -1, 0, 0, 0, 1, 0, 0, 0, -1;
+
   setDesiredPosition(START_POSITION);
-  setDesiredOrientation(START_ORIENTATION);
+  setDesiredOrientation(START_ROTATION);
 
   // Start the clock
   sutil::CSystemClock::start();
@@ -211,27 +226,31 @@ void IronDomeApp::updateState() {
 
   lock_guard<mutex> lg(data_lock);
 
-  // Update sensor values directly from robot
-  rio.sensors_.q_ = q_sensor;
-
-  // Update sensed generalized state
-  q = rio.sensors_.q_;
+  // Update joint angles either from integration or from robot encoders
+  if(simulation) {
+    q = rio.sensors_.q_;
+  } else {
+    q = rio.sensors_.q_;
+    //q = q_sensor;
+    //rio.sensors_.q_ = q;
+  }
 
   // TODO
-//  for (int i=0; i < dof; i++){
-//      if (!testJointLimit(i)){
-//          double qmax = rds.gc_pos_limit_max_[i];
-//          double qmin = rds.gc_pos_limit_min_[i];
-//          if (abs(q[i] - qmax) < abs(q[i] - qmin))
-//               q[i] = qmax - JOINT_LIMIT_EPSILON - 0.001;
-//          else
-//               q[i] = qmin + JOINT_LIMIT_EPSILON + 0.001;
-//        rio.sensors_.dq_[i] = 0;
-//        rio.sensors_.ddq_[i] = 0;
-//      }
-//  }
-  //rio.sensors_.q_ = q;
+  for (int i=0; i < dof; i++){
+      if (!testJointLimit(i)){
+          double qmax = rds.gc_pos_limit_max_[i];
+          double qmin = rds.gc_pos_limit_min_[i];
+          if (abs(q[i] - qmax) < abs(q[i] - qmin))
+               q[i] = qmax - JOINT_LIMIT_EPSILON - 0.001;
+          else
+               q[i] = qmin + JOINT_LIMIT_EPSILON + 0.001;
+        rio.sensors_.dq_[i] = 0;
+        rio.sensors_.ddq_[i] = 0;
+      }
+  }
 
+  // Just set these from the integration
+  // TODO maybe estimate from q, if they don't match up
   dq = rio.sensors_.dq_;
   ddq = rio.sensors_.ddq_;
 
@@ -278,7 +297,7 @@ void IronDomeApp::stateMachine() {
     state = STATE_PAUSED;
     target = NULL;
     setDesiredPosition(START_POSITION);
-    setDesiredOrientation(START_ORIENTATION);
+    setDesiredOrientation(START_ROTATION);
   }
 
   projectile_manager.updateActiveProjectiles();
@@ -304,7 +323,9 @@ void IronDomeApp::stateMachine() {
 
         if(tIntersect >= T_INTERCEPT_MIN) {
           Eigen::Vector3d collision_pos = proj->getPosition(tIntersect);
-          if(collision_pos[2] > HEIGHT_INTERCEPT_MIN) {
+          if((collision_pos[2] > Z_INTERCEPT_MIN) &&
+             (abs(collision_pos[1]) < Y_INTERCEPT_WIDTH) &&
+                 (collision_pos[0] > X_INTERCEPT_MIN)) {
             best_target = proj;
           }
         }
@@ -323,8 +344,8 @@ void IronDomeApp::stateMachine() {
       state = STATE_IDLE;
     }
 
-    setDesiredPosition(START_POSITION);
-    setDesiredOrientation(START_ORIENTATION);
+    setDesiredPosition(READY_POSITION);
+    setDesiredOrientation(READY_ORIENTATION);
 
   } else if(state == STATE_TARGETING) {
 
@@ -356,40 +377,6 @@ void IronDomeApp::stateMachine() {
     throw std::runtime_error("Uninitialized!");
   }
 }
-
-//void IronDomeApp::updateState() {
-//
-//  lock_guard<mutex> lg(data_lock);
-//
-//  // Update sensed generalized state
-//  q = rio.sensors_.q_;
-//  dq = rio.sensors_.dq_;
-//  ddq = rio.sensors_.ddq_;
-//
-//  // Compute kinematic quantities
-//  dyn_scl.computeTransformsForAllLinks(rgcm.rbdyn_tree_, q);
-//  dyn_scl.computeJacobianWithTransforms(J, *ee, q, op_pos);
-//
-//  lambda_inv = J * rgcm.M_gc_inv_ * J.transpose();
-//  lambda = lambda_inv.inverse();
-//
-//  g_q = rgcm.force_gc_grav_;
-//
-//  x_c = ee->T_o_lnk_ * op_pos;
-//  R_c = ee->T_o_lnk_.rotation();
-//
-//  v = J.block(0, 0, 3, dof) * dq;
-//  omega = J.block(3, 0, 3, dof) * dq;
-//
-//  double t_new = sutil::CSystemClock::getSysTime();
-//  double t_sim_new = sutil::CSystemClock::getSimTime();
-//  dt_sim = 1000 * (t_sim_new - t_sim);
-//  dt_real = 1000 * (t_new - t);
-//
-//  t = t_new;
-//  t_sim = t_sim_new;
-//}
-
 
 void IronDomeApp::fullTaskSpaceControl() {
 
@@ -540,11 +527,69 @@ void IronDomeApp::applyJointFriction() {
   }
 }
 
+void IronDomeApp::applyJointLimitPotential() {
+
+  Eigen::VectorXd q_0 = (rds.gc_pos_limit_max_ + rds.gc_pos_limit_min_) / 2;
+
+  Eigen::VectorXd q_range = rds.gc_pos_limit_max_ - q_0;
+
+  q_sat = (q - q_0).array() / q_range.array();
+
+  for(int i = 0; i < dof; i++) {
+    tau_jlim[i] = - K_JLIM[i] * tan(PI/2 * q_sat[i]*q_sat[i]*q_sat[i]);
+  }
+  tau += tau_jlim;
+  //cout << oslock << "Restoring torque: " << restoring_torque.transpose() << endl << osunlock;
+}
+
 void IronDomeApp::integrate() {
 
   lock_guard<mutex> lg(data_lock);
   dyn_tao.integrate(rio, SIMULATION_DT);
   iter++;
+}
+
+void IronDomeApp::sendToRobot(zmqpp::socket& robot_pub) {
+
+  data_lock.lock();
+
+  // Position error vector
+  dx = x_c - x_d;
+
+  // Clamp the position error vector
+  double dist_p = min(dx.norm(), DX_MAX_MAGNITUDE);
+  dx = dx.normalized() * dist_p;
+
+  // Incremental position towards goal
+  x_inc = x_c - dx;
+
+  // Scale from m to mm
+  x_inc *= 1000;
+
+  zmqpp::message msg;
+  msg << to_string(q[0]) + " " +
+             to_string(q[1]) + " " +
+             to_string(q[2]) + " " +
+             to_string(-q[3]) + " " +
+             to_string(q[4]) + " " +
+             to_string(q[5]) + " " +
+             to_string(0); //rio.sensors_.q_[6]);
+//  msg << to_string(x_inc[0]) + " " +
+//      to_string(x_inc[1]) + " " +
+//      to_string(x_inc[2]) + " " +
+//      to_string(R_d(0, 0)) + " " +
+//      to_string(R_d(1, 0)) + " " +
+//      to_string(R_d(2, 0)) + " " +
+//      to_string(R_d(0, 1)) + " " +
+//      to_string(R_d(1, 1)) + " " +
+//      to_string(R_d(2, 1)) + " " +
+//      to_string(R_d(0, 2)) + " " +
+//      to_string(R_d(1, 2)) + " " +
+//      to_string(R_d(2, 2));
+
+  data_lock.unlock();
+
+  robot_pub.send(msg);
 }
 
 void IronDomeApp::controlsLoop() {
@@ -554,13 +599,16 @@ void IronDomeApp::controlsLoop() {
 
   // Initialize a 0MQ publisher socket
   zmqpp::context context;
-  zmqpp::socket socket_pub(context, zmqpp::socket_type::publish);
+  zmqpp::socket robot_pub(context, zmqpp::socket_type::publish);
 
-  socket_pub.bind(ROBOT_PORT);
+  robot_pub.bind(ROBOT_PORT);
 
   while(!finished) {
 
     updateState();
+
+    if(!simulation) sendToRobot(robot_pub);
+
     stateMachine();
 
     // Compute the ideal joint torques based on some algorithm
@@ -571,36 +619,17 @@ void IronDomeApp::controlsLoop() {
     // Add gravity compensation in joint space
     if(gravityCompEnabled) applyGravityCompensation();
 
-    // Clamp the commanded torques
-    applyTorqueLimits();
+    // Apply forces to keep away from joint limits
+    applyJointLimitPotential();
 
     // Simulate joint friction
     applyJointFriction();
 
+    // Clamp the commanded torques
+    applyTorqueLimits();
+
     commandTorque(tau);
     integrate();
-
-    zmqpp::message msg;
-//    msg << to_string(rio.sensors_.q_[0]) + " " +
-//               to_string(rio.sensors_.q_[1]) + " " +
-//               to_string(rio.sensors_.q_[2]) + " " +
-//               to_string(-rio.sensors_.q_[3]) + " " +
-//               to_string(rio.sensors_.q_[4]) + " " +
-//               to_string(rio.sensors_.q_[5]) + " " +
-//               to_string(rio.sensors_.q_[6]);
-    msg << to_string(x_d[0]) + " " +
-           to_string(x_d[1]) + " " +
-           to_string(x_d[2]) + " " +
-           to_string(R_d(0, 0)) + " " +
-           to_string(R_d(1, 0)) + " " +
-           to_string(R_d(2, 0)) + " " +
-           to_string(R_d(0, 1)) + " " +
-           to_string(R_d(1, 1)) + " " +
-           to_string(R_d(2, 1)) + " " +
-           to_string(R_d(0, 2)) + " " +
-           to_string(R_d(1, 2)) + " " +
-           to_string(R_d(2, 2));
-    socket_pub.send(msg);
 
     nanosleep(&ts, NULL);
     sutil::CSystemClock::tick(SIMULATION_DT);
@@ -749,6 +778,7 @@ void printHelp() {
       << "  [q]uaternion w, x, y, z            Orient to quaternion (w, x, y, z).\n"
       << "  [g]ains kp_p, kv_p, kp_r, kv_r     Set the task-space control gains.\n"
       << "  [f]riction kv_friction             Set the joint friction gain.\n"
+      << "  [s]witch                           Switch between simulation and robot.\n"
       << endl << osunlock;
 }
 
@@ -760,17 +790,24 @@ void IronDomeApp::printState() {
   cout << "t = " << t << ", t_sim = " << t_sim << "\n";
   cout << "dt_sim = " << dt_sim << ", " << "dt_real = " << dt_real << "\n\n";
 
-  cout << "  q = " <<   q.transpose() << "\n"
-       << " dq = " <<  dq.transpose() << "\n"
-       << "ddq = " << ddq.transpose() << "\n\n";
-
-  cout << "M_gc = \n" << rgcm.M_gc_ << "\n\n";
-  cout << "lambda_inv = \n" << lambda_inv << "\n\n";
+  //cout << "M_gc = \n" << rgcm.M_gc_ << "\n\n";
+  //cout << "lambda_inv = \n" << lambda_inv << "\n\n";
   cout << "lambda = \n" << lambda << "\n\n";
   cout << "J = \n" << J << "\n\n";
 
   cout << "  F = " << F.transpose() << "\n";
   cout << "tau = " << tau.transpose() << "\n";
+  cout << "tau_jlim = " << tau_jlim.transpose() << "\n\n";
+
+  cout << "  q = " <<   q.transpose() << "\n"
+       << " dq = " <<  dq.transpose() << "\n"
+       << "ddq = " << ddq.transpose() << "\n"
+       << "q_sat = " << q_sat.transpose() << "\n\n";
+
+  cout << " x_c = " << x_c.transpose() << "\n"
+       << " x_d = " << x_d.transpose() << "\n"
+       << " x_inc = " << x_inc.transpose() << "\n"
+       << " R_c = \n" << R_c << "\n";
 
   cout << osunlock;
 }
@@ -903,6 +940,18 @@ void IronDomeApp::shellLoop() {
       paused = true;
       data_lock.unlock();
       cout << oslock << "Stopping projecticle defense." << endl << osunlock;
+
+    } else if((cmd == "switch") || (cmd == "s")) {
+      data_lock.lock();
+      if(simulation) {
+        simulation = false;
+        q_sensor = q;
+        cout << oslock << "Now controlling physical robot!!" << endl << osunlock;
+      } else {
+        simulation = true;
+        cout << oslock << "Now simulating." << endl << osunlock;
+      }
+      data_lock.unlock();
 
     } else if((cmd == "print") || (cmd == "p")) {
       printState();
