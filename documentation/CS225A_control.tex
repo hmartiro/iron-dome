@@ -5,41 +5,35 @@
 \usepackage{amssymb}
 \begin{document}
 \section*{Control Outline}
-\paragraph*{}
+
 Our control implementation for simulation is based on giving the robot a desired position
-and orientation in order to meet the balls flying at it, and using the known dynamics of the robot to calculate the necessary joint torques to reach the commanded configuration (1). The torques for the translational and rotational parts of the controller
+and orientation in order to meet the projectile flying at it, and using the known dynamics of the robot to calculate the necessary joint torques to reach the commanded configuration (1). The forces for the translational and rotational parts of the controller
 are calculated separately and then combined, with the position and rotation parts denoted
 by the subscripts P and R. 
-\paragraph*{} 
-We use the pseudo-inverse method to 
-find the task space mass matrix $\Lambda$
-from the joint space matrix (4)(5). We find the task space torques using PD control (6)(7), 
-using the error in position (8) for the cartesian force and error in orientation (9) 
-for the moments $F_{R}$. 
-\paragraph*{}
 
-The error in orientation (9) is found by taking the cross product of each column vector in the 
+We use the pseudo-inverse method to 
+find the task space mass matrix $\Lambda$ (3)
+from the joint space matrix. We find the task space torques using PD control (4)(5), 
+using the error in position (6) for the cartesian force and error in orientation (7) 
+for the moments $F_{R}$. 
+
+The error in orientation (7) is found by taking the cross product of each column vector in the 
 current rotation matrix $R_{CO}$ by the column vectors in the matrix 
 representing the desired rotation $R_{DO}$. This gives a torque axis and magnitude which the proportional rotation gain $k_{pR}$ is applied to.
 
      
 
 \begin{align}
-\tau &= \begin{bmatrix}
-\tau_{P}\\
-\tau_{R}
-\end{bmatrix}+G(q) \\
-\tau_{P} &= J^{T}_{P}(\Lambda_{P}F_{P})\\
-\tau_{R} &= J^{T}_{R}(\Lambda_{R}F_{R})\\
-\Lambda_{P} &= (J_{P}M^{-1}J_{P}^{T})^{-1}\\
-\Lambda_{R} &= (J_{R}M^{-1}J_{R}^{T})^{-1} \\
-F_{P} &= -k_{pP}*dx - k_{vP}*\dot{x}\\
-F_{R} &= -k_{pR}*d\phi - k_{vR}*\omega  \\
+\tau_{total} &= \tau +G(q)\\
+\tau &= J^{T}(\Lambda F)\\
+\Lambda &= (JM^{-1}J^{T})^{-1}\\F_{P} &= -k_{pP}*dx - k_{vP}*\dot{x}\\
+F_{R} &= -k_{pR}*d\phi - k_{vR}*\omega\\
 dx &= x_{C} - x_{D}\\
 d\phi &= -\frac{1}{2}(s_{1C}\times s_{1D}+s_{2C}\times s_{2D}+s_{3C}\times s_{3D})\\
 \omega &= J_{R}*\dot{q}\\
-\dot{x} &= J_{P}*\dot{q}\\
+\dot{x} &= J_{P}*\dot{q}
 \end{align}
+
 $R_{CO} = 
 \begin{bmatrix}
 \vert & \vert & \vert\\
