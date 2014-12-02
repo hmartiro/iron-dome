@@ -155,62 +155,10 @@
 			</div>
 
 			<!--INTRODUCTION-->
-			<div class="hrline"> <hr /> </div> <br />
+			<!--<div class="hrline"> <hr /> </div> <br />
 			<div class="row clearfix">
-				<h3>Control Algorithm</h3>
-				<p>
-                    Below are the equations to calculate the commanded generalized
-                    forces, \(\tau\), of our robot. Subscripts P and R stand for
-                    position and rotation, respectively, and subscripts C and D
-                    stand for current and desired.
-                    <br /><br />
-			<p>
-			Our control implementation for simulation is based on giving the robot a desired position
-			and orientation in order to meet the projectile flying at it, and using the known dynamics
-			of the robot to calculate the necessary joint torques to reach the commanded configuration (1). 
-			The forces for the translational and rotational parts of the controller
-			are calculated separately and then combined, with the position and rotation parts denoted
-			by the subscripts P and R. 
-			<p>
-			We use the pseudo-inverse method to 
-			find the task space mass matrix \(\Lambda\) (3)
-			from the joint space matrix. We find the task space torques using PD control (4)(5), 
-			using the error in position (6) for the cartesian force and error in orientation (7) 
-			for the moments \(F_{R}\). 
-			<p>
-			The error in orientation (7) is found by taking the cross product of each column vector in the 
-			current rotation matrix \(R_{CO}\) by the column vectors in the matrix 
-			representing the desired rotation \(R_{DO}\). This gives a torque axis and
-			 magnitude which the proportional rotation gain \(k_{pR}\) is applied to.
-    <br /><br />
- 
-\begin{align}
-\tau_{total} &= \tau +G(q)\\
-\tau &= J^{T}(\Lambda F)\\
-\Lambda &= (JM^{-1}J^{T})^{-1}\\F_{P} &= -k_{pP}*dx - k_{vP}*\dot{x}\\
-F_{R} &= -k_{pR}*d\phi - k_{vR}*\omega\\
-dx &= x_{C} - x_{D}\\
-d\phi &= -\frac{1}{2}(s_{1C}\times s_{1D}+s_{2C}\times s_{2D}+s_{3C}\times s_{3D})\\
-\omega &= J_{R}*\dot{q}\\
-\dot{x} &= J_{P}*\dot{q}
-\end{align}
-
-\[ R_{CO} = 
-\begin{bmatrix}
-\vert & \vert & \vert\\
-s_{1C} & s_{2C} & s_{3C}\\
-\vert & \vert & \vert\\
-\end{bmatrix}\\
-R_{DO} = 
-\begin{bmatrix}
-\vert & \vert & \vert\\
-s_{1D} & s_{2D} & s_{3D}\\
-\vert & \vert & \vert\\
-\end{bmatrix}
-\]
-
-				</p>
-			</div>
+			
+			</div>-->
 
 			<!--BACKGROUND-->
 			<!-- <div class="hrline"> <hr /> </div> <br />
@@ -266,7 +214,7 @@ s_{1D} & s_{2D} & s_{3D}\\
 					R^2 &= (x_s-x)^2+(y_s-y)^2+(z_s-z)^2
 					\end{align*}
 				<p>
-					Where \(x,y,z\) are the position of the ball with respect to the robot base frame.
+					Where \([x,y,z]\) is the position of the ball with respect to the robot base frame.
 					The acceleration in z is assumed to be \(-9.81 \frac{m}{s}\) while in x and y it
 					 is assumed to be zero. The radius \(R\) and position of the sphere are chosen such that the window
 					 in front of the robot is within the usable workspace of the robot. We used a polynomial solver 
@@ -274,6 +222,87 @@ s_{1D} & s_{2D} & s_{3D}\\
 					  that the predicted trajectory would intercept the sphere. If one or more real roots exist, then
 					  there will be an intersection at the time of the lowest real root.
 				</p>
+			<div class="hrline"> <hr /> </div> <br />
+				<h3>Control Algorithm</h3>
+				<p>
+				    Below are the equations to calculate the commanded generalized
+				    forces, \(\tau\), of our robot. Subscripts P and R stand for
+				    position and rotation, respectively, and subscripts C and D
+				    stand for current and desired.
+				    <br /><br />
+				<p>
+					Our control implementation for simulation is based on giving the robot a desired position
+					and orientation in order to meet the projectile flying at it, and using the known dynamics
+					of the robot to calculate the necessary joint torques to reach the commanded configuration (1). 
+					The forces for the translational and rotational parts of the controller
+					are calculated separately and then combined, with the position and rotation parts denoted
+					by the subscripts P and R. 
+					<p>
+					We use the pseudo-inverse method to 
+					find the task space mass matrix \(\Lambda\) (3)
+					from the joint space matrix. We find the task space torques using PD control (4)(5), 
+					using the error in position (6) for the cartesian force and error in orientation (7) 
+					for the moments \(F_{R}\). 
+					<p>
+					The error in orientation (7) is found by taking the cross product of each column vector in the 
+					current rotation matrix \(R_{CO}\) by the column vectors in the matrix 
+					representing the desired rotation \(R_{DO}\). This gives a torque axis and
+					 magnitude which the proportional rotation gain \(k_{pR}\) is applied to.
+					    <br /><br />
+					 
+					\begin{align}
+					\tau_{total} &= \tau +G(q)\\
+					\tau &= J^{T}(\Lambda F)\\
+					\Lambda &= (JM^{-1}J^{T})^{-1}\\F_{P} &= -k_{pP}*dx - k_{vP}*\dot{x}\\
+					F_{R} &= -k_{pR}*d\phi - k_{vR}*\omega\\
+					dx &= x_{C} - x_{D}\\
+					d\phi &= -\frac{1}{2}(s_{1C}\times s_{1D}+s_{2C}\times s_{2D}+s_{3C}\times s_{3D})\\
+					\omega &= J_{R}*\dot{q}\\
+					\dot{x} &= J_{P}*\dot{q}
+					\end{align}
+
+					\[ R_{CO} = 
+					\begin{bmatrix}
+					\vert & \vert & \vert\\
+					s_{1C} & s_{2C} & s_{3C}\\
+					\vert & \vert & \vert\\
+					\end{bmatrix}\\
+					R_{DO} = 
+					\begin{bmatrix}
+					\vert & \vert & \vert\\
+					s_{1D} & s_{2D} & s_{3D}\\
+					\vert & \vert & \vert\\
+					\end{bmatrix}
+					\]
+
+				</p>
+
+			<div class="hrline"> <hr /> </div>
+<h3>Projectile Detection</h3><br />
+					<p>
+					The vision task of our project is to track multiple projectiles 
+					and obtain their world coordinates (x, y, z) along with a timestamp. 
+					The result is used for predicting the trajectories so that we can command 
+					the robot to a desired position and orientation in advance of the projectile. 
+					With this in mind, our vision system must meet the requirements of high speed and accuracy. </p><p>
+					We are using the Kinect for Windows V2 to track incoming projectiles. The depth sensor 
+					of the Kinect has a frame rate of 30Hz and improved resolution (compared to Kinect V1) of 
+					512 x 424, as well as much lower latency. We run a simple blob detector on the depth image 
+					to segmentate projectiles from the background. As introduced on the
+					<a href="http://docs.opencv.org/modules/features2d/doc/common_interfaces_of_feature_detectors.html#simpleblobdetector">
+					 OpenCV documentation</a>, a simple blob detector extracts
+					 blobs by running multiple binary thresholding on the image, finding connected components(contours)
+					 on each binary images, and grouping close centers of the contours from different binary images. 
+					As our projectile is a ball with certain size, we also enable filter
+					 by circularity and filter by area. 
+
+					</p>
+<img alt= "Depth image with ball coordinates and circle overlay" src="./pictures/screenshot-detect.png" height="300"><br /><p>
+After extracting blobs from the image, we further analyze the result to filter out noise detection based on radius/depth ratio. We record the ball radius in pixels versus depth and fit the data into a 3rd order polynomial equation (shown in figure below). In our program, we calculate the “desired” pixel radius of each blob using the depth of its center, and filter out those with a radius that has more than 10% error from the desired value. </p>
+<img alt= "" src="./pictures/r-vs-d.png" height="300"><br />
+<p>
+For better handling of multiple projectiles, we implemented several ID assignment strategies to assign each projectile an unique ID. Basically we assume a new projectile is coming if we haven’t detected anything in the past second (or less than one second). And we decide whether a projectile is the same one as detected before by looking at its space distance and the time stamps. For this purpose, detected balls are stored in a first come first out buffer container each for 0.3 seconds (approximately 10 frames). A decision flowchart is shown below. </p>
+<img alt= "" src="./pictures/flowchart.jpeg" height="400">
 
 			</div>
 
@@ -297,16 +326,15 @@ s_{1D} & s_{2D} & s_{3D}\\
 				<h3>Status</h3>
 				<ul>
                     <li>We have working position/orientation control of our end effector.</li>
-                    <li>We have laid out a plan for a high-level state machine for the system.</li>
+                    <li>We have a working state machine for the system.</li>
                     <li>We have classes to generate projectiles based on statistically
                     realistic initial conditions and noisy observations.</li>
                     <li>We have a thread that runs within the SCL app, that provides information
                         about real or simulated projectiles.
-                    <li>We have a preliminary Kalman filter that appears to work well on test data.</li>
-                    <li>We have a Kinect v2 and are working on projectile detection.</li>
-                    <li>We have preliminary plans to interface with the Kuka using the ROS
-                        interface.</li>
-                    <li>We have started to consider safety features.</li>
+                    <li>We have a working Kalman filter that appears to work well on test data.</li>
+                    <li>We have a Kinect v2 that does multiple projectile detection.</li>
+                    <li>We interface with the Kuka using the ROS interface.</li>
+                    <li>We have implemented joint limits and other safety features.</li>
                 </ul>
 			</div>
 
