@@ -1,0 +1,25 @@
+\documentclass[12pt,a4paper,notitlepage]{report}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\begin{document}
+\section*{Projectile Interception}
+The area that the robot defends is inside a hemisphere centered on the robot base.
+ The surface of this volume is where the robot intercepts incoming projectiles. Once the trajectory of the projectile has been estimated,
+  If the projectile will intersect the dome, the robot moves to reach the intersection
+   point. The intersection point is found by solving the following system of equations:
+\begin{align*}
+x &= x_0+v_x*t+\frac{1}{2}a_x^2\\
+y &= y_0+v_y*t+\frac{1}{2}a_y^2\\
+z &= z_0+v_z*t+\frac{1}{2}a_z^2\\
+R^2 &= x^2+y^2+z^2
+\end{align*}
+
+The acceleration in z is assumed to be $-9.81 \frac{m}{s}$ while in x and y it
+ is assumed to be zero. The radius $R$ of the sphere is chosen to be within the reachable workspace of the robot. We used a polynomial solver 
+ on the fourth order equation in $t$ to find the time and location
+  that the predicted trajectory would intercept the sphere.
+ 
+  
+\end{document}
