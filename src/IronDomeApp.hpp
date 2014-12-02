@@ -69,6 +69,7 @@ public:
   void setDesiredOrientation(const Eigen::Matrix3d& R);
   void setDesiredOrientation(const Eigen::Quaterniond& quat);
   void setDesiredOrientation(double x, double y, double z);
+  void setDesiredJointPosition(const Eigen::VectorXd& q_new);
 
   /**
   * Relative movements of desired state.
@@ -112,6 +113,11 @@ private:
   * apply PD control in joint space.
   */
   void resolvedMotionRateControl();
+
+  /**
+  * Simple PD control in joint space.
+  */
+  void jointSpaceControl();
 
   void applyTorqueLimits();
   void applyJointFriction();
@@ -182,6 +188,7 @@ private:
   Eigen::MatrixXd lambda, lambda_inv; // Generalized mass matrix and inverse
   Eigen::VectorXd tau_jlim; // Restoring torque for joint limit avoidance
   Eigen::VectorXd q_sat; // Joint limit saturation
+  Eigen::VectorXd q_d, q_diff; // Desired position in joint-space control mode
 
   Eigen::VectorXd g_q; // Generalized gravity force
   Eigen::VectorXd tau; // Commanded generalized force
@@ -191,6 +198,8 @@ private:
   Eigen::VectorXd q_sensor; // Joint position read from actual robot
 
   Eigen::Vector3d x_inc; // Incremental position towards goal
+
+  Eigen::VectorXd ready_pos_joint; // Ready position, in joint space
 
   // Class for managing the current state of projectiles
   ProjectileManager projectile_manager;
@@ -206,4 +215,7 @@ private:
 
   // Whether we are simulating or controlling the real robot
   bool simulation;
+
+  // Whether we are controlling in joint space or task space
+  bool joint_space;
 };
