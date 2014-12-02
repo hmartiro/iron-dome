@@ -82,7 +82,8 @@ static const Eigen::Vector3d COLLISION_SPHERE_POS(0, 0, 0.338);
 static const double COLLISION_SPHERE_RADIUS = 0.8;
 #endif
 
-static const string VISION_ENDPOINT = "tcp://localhost:4242";
+//static const string VISION_ENDPOINT = "tcp://localhost:4242";
+static const string VISION_ENDPOINT = "tcp://171.64.70.100:4242";
 static const string ROBOT_PORT = "tcp://*:3883";
 static const string ROBOT_ENDPOINT = "tcp://localhost:4244";
 
@@ -106,7 +107,7 @@ static const double Y_INTERCEPT_WIDTH = 0.4;
 
 static const double JOINT_LIMIT_EPSILON = 3 * PI / 180;
 
-static const vector<double> K_JLIM = {40, 40, 40, 40, 40, 40, 40};
+static const vector<double> K_JLIM = {50, 80, 50, 50, 50, 50, 50};
 
 static const bool gravityCompEnabled = true;
 
@@ -265,19 +266,19 @@ void IronDomeApp::updateState() {
     //rio.sensors_.q_ = q;
   }
 
-  // TODO
-  for (int i=0; i < dof; i++){
-      if (!testJointLimit(i)){
-          double qmax = rds.gc_pos_limit_max_[i];
-          double qmin = rds.gc_pos_limit_min_[i];
-          if (abs(q[i] - qmax) < abs(q[i] - qmin))
-               q[i] = qmax - JOINT_LIMIT_EPSILON - 0.001;
-          else
-               q[i] = qmin + JOINT_LIMIT_EPSILON + 0.001;
-        rio.sensors_.dq_[i] = 0;
-        rio.sensors_.ddq_[i] = 0;
-      }
-  }
+//  // TODO
+//  for (int i=0; i < dof; i++){
+//      if (!testJointLimit(i)){
+//          double qmax = rds.gc_pos_limit_max_[i];
+//          double qmin = rds.gc_pos_limit_min_[i];
+//          if (abs(q[i] - qmax) < abs(q[i] - qmin))
+//               q[i] = qmax - JOINT_LIMIT_EPSILON - 0.001;
+//          else
+//               q[i] = qmin + JOINT_LIMIT_EPSILON + 0.001;
+//        rio.sensors_.dq_[i] = 0;
+//        rio.sensors_.ddq_[i] = 0;
+//      }
+//  }
 
   // Just set these from the integration
   // TODO maybe estimate from q, if they don't match up
@@ -577,8 +578,8 @@ void IronDomeApp::applyJointLimitPotential() {
   q_sat = (q - q_0).array() / q_range.array();
 
   for(int i = 0; i < dof; i++) {
-    if(q_sat[i] >= +1) q_sat[i] = +0.99;
-    if(q_sat[i] <= -1) q_sat[i] = -0.99;
+    if(q_sat[i] >= +1) q_sat[i] = +0.98;
+    if(q_sat[i] <= -1) q_sat[i] = -0.98;
     tau_jlim[i] = - K_JLIM[i] * tan(PI/2 * q_sat[i]*q_sat[i]*q_sat[i]);
   }
   tau += tau_jlim;
@@ -858,7 +859,7 @@ void IronDomeApp::printState() {
   cout << "J = \n" << J << "\n\n";
 
   cout << "  F = " << F.transpose() << "\n";
-  cout << "tau = " << tau.transpose() << "\n";
+  cout << "tau = " << rio.actuators_.force_gc_commanded_.transpose() << "\n";
   cout << "tau_jlim = " << tau_jlim.transpose() << "\n\n";
 
   cout << "  q = " <<   q.transpose() << "\n"
