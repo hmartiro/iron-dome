@@ -12,14 +12,15 @@ are calculated separately and then combined, with the position and rotation part
 by the subscripts P and R. 
 
 We use the pseudo-inverse method to 
-find the task space mass matrix $\Lambda$ (3)
+find the task space mass matrix \(\Lambda\) (3)
 from the joint space matrix. We find the task space torques using PD control (4)(5), 
 using the error in position (6) for the cartesian force and error in orientation (7) 
-for the moments $F_{R}$. 
+for the moments \(F_{R}\). 
 
 The error in orientation (7) is found by taking the cross product of each column vector in the 
-current rotation matrix $R_{CO}$ by the column vectors in the matrix 
-representing the desired rotation $R_{DO}$. This gives a torque axis and magnitude which the proportional rotation gain $k_{pR}$ is applied to.
+current rotation matrix \(R_{CO}\) by the column vectors in the matrix 
+representing the desired rotation \(R_{DO}\). This gives a torque axis and
+ magnitude which the proportional rotation gain \(k_{pR}\) is applied to.
 
      
 
@@ -34,7 +35,7 @@ d\phi &= -\frac{1}{2}(s_{1C}\times s_{1D}+s_{2C}\times s_{2D}+s_{3C}\times s_{3D
 \dot{x} &= J_{P}*\dot{q}
 \end{align}
 
-$R_{CO} = 
+\[R_{CO} = 
 \begin{bmatrix}
 \vert & \vert & \vert\\
 s_{1C} & s_{2C} & s_{3C}\\
@@ -46,5 +47,5 @@ R_{DO} =
 s_{1D} & s_{2D} & s_{3D}\\
 \vert & \vert & \vert\\
 \end{bmatrix}
-$
+\]
 \end{document}
