@@ -12,7 +12,7 @@
 using namespace std;
 
 // Mean expected origin of projectiles
-static const Eigen::Vector3d p0_avg = {4.5, 0, .9};
+static const Eigen::Vector3d p0_avg = {4.2, 0, .7};
 
 // Gravity vector
 static const Eigen::Vector3d gravity = {0, 0, -9.81};
@@ -24,6 +24,9 @@ static const double v0_stddev = 0.2;
 // Simulated measurement noise
 static const double pObserved_stddev = 0.05;
 
+// X distance cutoff for observations
+static const double x_cutoff = 1.5;
+
 // ------------------------------
 // SimProjectile
 // ------------------------------
@@ -33,7 +36,7 @@ SimProjectile::SimProjectile(int id, double t0,
   id(id), t0(t0), p0(p0), v0(v0), a0(a0) {}
 
 bool SimProjectile::isExpired() {
-  return p[0] < 0.5;
+  return p[0] < x_cutoff;
 }
 
 // ------------------------------
