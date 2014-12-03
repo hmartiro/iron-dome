@@ -23,7 +23,7 @@ static const double GRAPHICS_DT = 0.020;
 
 // Position of the operational point relative
 // to the end-effector
-static const Eigen::Vector3d OP_POS(0, 0.0, 0.15);
+static const Eigen::Vector3d OP_POS(0, 0.0, 6.5*2.54/100);
 
 // Robot states
 static const int STATE_UNINIT = -1;
@@ -82,32 +82,32 @@ static const Eigen::Vector3d COLLISION_SPHERE_POS(0, 0, 0.338);
 static const double COLLISION_SPHERE_RADIUS = 0.8;
 #endif
 
-//static const string VISION_ENDPOINT = "tcp://localhost:4242";
-static const string VISION_ENDPOINT = "tcp://171.64.70.100:4242";
+static const string VISION_ENDPOINT = "tcp://localhost:4242";
+//static const string VISION_ENDPOINT = "tcp://192.168.150.2:4242";
 static const string ROBOT_PORT = "tcp://*:3883";
 static const string ROBOT_ENDPOINT = "tcp://localhost:4244";
 
-static const double KP_P = 7000;
-static const double KV_P = 600;
-static const double KP_R = 5000;
-static const double KV_R = 400;
+static const double KP_P = 15000;
+static const double KV_P = 1000;
+static const double KP_R = 11000;
+static const double KV_R = 500;
 
-static const double KP_Q_BASE = 25;
-static const double KV_Q_BASE = 7;
+static const double KP_Q_BASE = 30;
+static const double KV_Q_BASE = 8;
 
 // How far towards the desired position to command
-static const double DX_MAX_MAGNITUDE = 0.10;
-static const double DPHI_MAX_MAGNITUDE = 0.20;
+static const double DX_MAX_MAGNITUDE = 0.13;
+static const double DPHI_MAX_MAGNITUDE = 0.25;
 
 // Constraints on which targets to intercept
 static const double T_INTERCEPT_MIN = 0.3;
-static const double Z_INTERCEPT_MIN = 0.6;
-static const double X_INTERCEPT_MIN = 0.3;
-static const double Y_INTERCEPT_WIDTH = 0.4;
+static const double Z_INTERCEPT_MIN = 0.65;
+static const double X_INTERCEPT_MIN = 0.35;
+static const double Y_INTERCEPT_WIDTH = 0.45;
 
 static const double JOINT_LIMIT_EPSILON = 3 * PI / 180;
 
-static const vector<double> K_JLIM = {50, 80, 50, 50, 50, 50, 50};
+static const vector<double> K_JLIM = {100, 150, 100, 100, 100, 100, 100};
 
 static const bool gravityCompEnabled = true;
 
@@ -239,7 +239,7 @@ void IronDomeApp::setControlGains(double kp_p, double kv_p, double kp_r, double 
 void IronDomeApp::setJointFrictionDamping(double kv_friction) {
   lock_guard<mutex> lg(data_lock);
   for(int i = 0; i < dof; i++) {
-    rds.rb_tree_.at(i)->friction_gc_kv_ = kv_friction;
+    rds.rb_tree_.at(i)->friction_gc_kv_ = kv_friction * 1.3;
   }
 }
 
@@ -286,7 +286,8 @@ void IronDomeApp::updateState() {
   ddq = rio.sensors_.ddq_;
 
   // Compute kinematic quantities
-  dyn_scl.computeTransformsForAllLinks(rgcm.rbdyn_tree_, q);
+  dyn_scl.computeGCModel(&rio.sensors_, &rgcm);
+  //dyn_scl.computeTransformsForAllLinks(rgcm.rbdyn_tree_, q);
   dyn_scl.computeJacobianWithTransforms(J, *ee, q, op_pos);
 
   lambda_inv = J * rgcm.M_gc_inv_ * J.transpose();
@@ -549,7 +550,8 @@ void IronDomeApp::jointSpaceControl() {
   // Joint error vector
   q_diff = q - q_d;
 
-  tau = -kp_q.array() * q_diff.array() - kv_q.array() * dq.array();
+  Eigen::VectorXd F = -kp_q.array() * q_diff.array() - kv_q.array() * dq.array();
+  tau = rgcm.M_gc_ * F;
 }
 
 void IronDomeApp::applyGravityCompensation() {
@@ -558,8 +560,8 @@ void IronDomeApp::applyGravityCompensation() {
 
 void IronDomeApp::applyTorqueLimits() {
   for(int i = 0; i < dof; i++) {
-    tau(i) = min(tau(i), rds.rb_tree_.at(i)->force_gc_lim_upper_);
-    tau(i) = max(tau(i), rds.rb_tree_.at(i)->force_gc_lim_lower_);
+    tau(i) = min(tau(i), rds.rb_tree_.at(i)->force_gc_lim_upper_*2.0);
+    tau(i) = max(tau(i), rds.rb_tree_.at(i)->force_gc_lim_lower_*2.0);
   }
 }
 
@@ -686,13 +688,13 @@ void IronDomeApp::controlsLoop() {
 //    if(iter % 950 == 0) {
 //      cout << oslock << "t_wait: " << t_wait*1000 << endl << osunlock;
 //    }
-    t_wait = 0.00002;
-    if(t_wait > 0) {
-      long nanosec = static_cast<long>(t_wait * 1e9);
-      const timespec ts = {0, nanosec};
+    //t_wait = 0;//.00001;
+    if(t_wait > 0) t_wait = 0;
 
-      nanosleep(&ts, NULL);
-    }
+    long nanosec = static_cast<long>(t_wait * 1e9);
+    const timespec ts = {0, nanosec};
+    nanosleep(&ts, NULL);
+
     sutil::CSystemClock::tick(SIMULATION_DT);
   }
 }
@@ -853,7 +855,7 @@ void IronDomeApp::printState() {
   cout << "t = " << t << ", t_sim = " << t_sim << "\n";
   cout << "dt_sim = " << dt_sim << ", " << "dt_real = " << dt_real << "\n\n";
 
-  //cout << "M_gc = \n" << rgcm.M_gc_ << "\n\n";
+  cout << "M_gc = \n" << rgcm.M_gc_ << "\n\n";
   //cout << "lambda_inv = \n" << lambda_inv << "\n\n";
   cout << "lambda = \n" << lambda << "\n\n";
   cout << "J = \n" << J << "\n\n";

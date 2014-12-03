@@ -15,7 +15,8 @@ static const double GRAVITY = -9.81;
 static const int CONVERGE_LIMIT = 4;
 
 // When the projectile is due to pass this point, get rid of it
-static const double X_EXPIRATION = -1;
+static const double X_EXPIRATION = -0.3;
+static const double Z_EXPIRATION = 0;
 
 using namespace std;
 
@@ -231,7 +232,9 @@ void ProjectileManager::updateActiveProjectiles() {
   // Get rid of expired projectiles
   // Special method of iteration because we are deleting
   for(auto it = converged_projectiles.begin(); it != converged_projectiles.end();) {
-    if ((*it).second->getPosition(now)(0) < X_EXPIRATION) {
+    Eigen::Vector3d pos = (*it).second->getPosition(now);
+    bool expired = (pos[0] < X_EXPIRATION) || (pos[2] < Z_EXPIRATION);
+    if (expired) {
       converged_projectiles.erase(it++);
     } else {
       ++it;
@@ -241,7 +244,9 @@ void ProjectileManager::updateActiveProjectiles() {
   // Get rid of expired projectiles
   // Special method of iteration because we are deleting
   for(auto it = projectiles.begin(); it != projectiles.end();) {
-    if ((*it).second->getPosition(now)(0) < X_EXPIRATION) {
+    Eigen::Vector3d pos = (*it).second->getPosition(now);
+    bool expired = (pos[0] < X_EXPIRATION) || (pos[2] < Z_EXPIRATION);
+    if(expired) {
       //cout << "Removing expired projectile " << (*it).first << "\n";
       delete (*it).second;
       projectiles.erase(it++);
