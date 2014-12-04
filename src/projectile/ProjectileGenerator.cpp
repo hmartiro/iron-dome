@@ -18,8 +18,8 @@ static const Eigen::Vector3d p0_avg = {4.2, 0, .7};
 static const Eigen::Vector3d gravity = {0, 0, -9.81};
 
 // Initial condition per-axis standard deviation
-static const double p0_stddev = 0.2;
-static const double v0_stddev = 0.2;
+static const double p0_stddev = 0.25;
+static const double v0_stddev = 0.25;
 
 // Simulated measurement noise
 static const double pObserved_stddev = 0.05;

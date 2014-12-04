@@ -23,7 +23,7 @@ static const double GRAPHICS_DT = 0.020;
 
 // Position of the operational point relative
 // to the end-effector
-static const Eigen::Vector3d OP_POS(0, 0.0, 6.5*2.54/100);
+static const Eigen::Vector3d OP_POS(0, 0.0, 8*2.54/100);
 
 // Robot states
 static const int STATE_UNINIT = -1;
@@ -41,7 +41,7 @@ static const string robot_name("iiwaBot");
 static const string graphics_name("iiwaBotStdView");
 static const string config_file("./specs/iiwa/iiwaCfg.xml");
 
-static const Eigen::Vector3d READY_POSITION(0.524, 0, 1.034);
+static const Eigen::Vector3d READY_POSITION(0.556, 0, 1.076);
 static const Eigen::Quaterniond READY_ORIENTATION(0.92, 0, 0.38, 0);
 
 static const Eigen::Vector3d START_POSITION(0.6, 0, 0.58);
@@ -53,7 +53,7 @@ Eigen::Matrix3d START_ROTATION;
 //static const Eigen::Vector3d COLLISION_SPHERE_POS(0, 0, 0.5);
 //static const double COLLISION_SPHERE_RADIUS = 0.75;
 static const Eigen::Vector3d COLLISION_SPHERE_POS(-.4, 0, 0.1);
-static const double COLLISION_SPHERE_RADIUS = 1.35;
+static const double COLLISION_SPHERE_RADIUS = 1.40;
 #endif
 
 #ifdef KUKA
@@ -82,8 +82,8 @@ static const Eigen::Vector3d COLLISION_SPHERE_POS(0, 0, 0.338);
 static const double COLLISION_SPHERE_RADIUS = 0.8;
 #endif
 
-//static const string VISION_ENDPOINT = "tcp://localhost:4242";
-static const string VISION_ENDPOINT = "tcp://192.168.150.2:4242";
+static const string VISION_ENDPOINT = "tcp://localhost:4242";
+//static const string VISION_ENDPOINT = "tcp://192.168.150.2:4242";
 static const string ROBOT_PORT = "tcp://*:3883";
 static const string ROBOT_ENDPOINT = "tcp://localhost:4244";
 
@@ -100,9 +100,9 @@ static const double DX_MAX_MAGNITUDE = 0.10;
 static const double DPHI_MAX_MAGNITUDE = 0.25;
 
 // Constraints on which targets to intercept
-static const double T_INTERCEPT_MIN = 0.3;
-static const double Z_INTERCEPT_MIN = 0.65;
-static const double X_INTERCEPT_MIN = 0.35;
+static const double T_INTERCEPT_MIN = 0.25;
+static const double Z_INTERCEPT_MIN = 0.55;
+static const double X_INTERCEPT_MIN = 0.20;
 static const double Y_INTERCEPT_WIDTH = 0.5;
 
 static const double JOINT_LIMIT_EPSILON = 3 * PI / 180;
@@ -110,6 +110,9 @@ static const double JOINT_LIMIT_EPSILON = 3 * PI / 180;
 static const vector<double> K_JLIM = {100, 150, 100, 100, 100, 100, 100};
 
 static const bool gravityCompEnabled = true;
+
+// Amount past the cutoffs to stop chasing active targets
+static const double CHASE_HYSTERESIS = 0.05;
 
 IronDomeApp::IronDomeApp() : t(0), t_sim(0), iter(0), finished(false),
         op_pos(OP_POS), kp_p(KP_P), kv_p(KV_P), kp_r(KP_R), kv_r(KV_R),
@@ -395,6 +398,15 @@ void IronDomeApp::stateMachine() {
 
     if(tIntersect >= 0) {
       Eigen::Vector3d collision_pos = target->getPosition(tIntersect);
+
+      if((collision_pos[2] < Z_INTERCEPT_MIN - CHASE_HYSTERESIS) ||
+          (abs(collision_pos[1]) > Y_INTERCEPT_WIDTH + CHASE_HYSTERESIS) ||
+          (collision_pos[0] < X_INTERCEPT_MIN - CHASE_HYSTERESIS)) {
+        target = NULL;
+        state = STATE_IDLE;
+        return;
+      }
+
       setDesiredPosition(collision_pos);
 
       Eigen::Vector3d desired_z_axis = -target->getVelocity(tIntersect);
@@ -473,7 +485,7 @@ void IronDomeApp::incrementalTaskSpaceControl() {
   // Calculate the rotation force
   F_r = -kp_r * dphi - kv_r * omega;
 
-  // Superimpose the forces
+  // Stack the forces
   F << F_p, F_r;
 
   tau = J.transpose() * (lambda * F);

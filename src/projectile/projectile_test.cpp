@@ -16,7 +16,7 @@ const string ADDRESS = "tcp://*:4242";
 int main(int argc, char* argv[]) {
 
   // Projectile generation parameters
-  double t_avg = 3.0;
+  double t_avg = 2.5;
   double v_avg = 6.5;
   double theta_avg = M_PI / 4;
 
