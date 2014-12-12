@@ -5,7 +5,7 @@
   <title>CS225A Iron Dome Project</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="">
-  <meta name="author" content="samir, brian" >
+  <meta name="author" content="Daniel,Hayk,Wanxi" >
 
 
 	<link href="css/bootstrap.min.css" rel="stylesheet">
@@ -181,7 +181,9 @@
 					The robot is commanded using open loop joint space control, where the joint positions commanded
 					are the joint positions of the robot's counterpart in our real-time simulation. The simulation 
 					and command are both done at 10kHz. The rest of the robot's operation can be explained by a 
-                                        description of the simulation.							
+                                        description of the simulation. Our simulation was an essential tool for this project because it's modularity
+                                        allowed us to easily command the simulated robot or the real robot, interchange simulated projectile data for real data
+                                        from the vision system, and rapidly debug and test different controllers.
 				</p>
                                 <h4>State Machine</h4>
                                 <p>
@@ -237,19 +239,19 @@
 					The forces for the translational and rotational parts of the controller
 					are calculated separately and then combined, with the position and rotation parts denoted
 					by the subscripts P and R. 
-					<p>
+				<p>
 					We use the pseudo-inverse method to 
 					find the task space mass matrix \(\Lambda\) (3)
 					from the joint space matrix. We find the task space torques using PD control (4)(5), 
 					using the error in position (6) for the cartesian force and error in orientation (7) 
 					for the moments \(F_{R}\). 
-					<p>
+				<p>
 					The error in orientation (7) is found by taking the cross product of each column vector in the 
 					current rotation matrix \(R_{CO}\) by the column vectors in the matrix 
 					representing the desired rotation \(R_{DO}\). This gives a torque axis and
 					 magnitude which the proportional rotation gain \(k_{pR}\) is applied to.
-					    <br /><br />
-					 
+			        <br /><br />
+				 
 					\begin{align}
 					\tau_{total} &= \tau +G(q)\\
 					\tau &= J^{T}(\Lambda F)\\
@@ -277,33 +279,49 @@
 
 				</p>
 
-			<div class="hrline"> <hr /> </div>
-<h3>Projectile Detection</h3><br />
-					<p>
-					The vision task of our project is to track multiple projectiles 
-					and obtain their world coordinates (x, y, z) along with a timestamp. 
-					The result is used for predicting the trajectories so that we can command 
-					the robot to a desired position and orientation in advance of the projectile. 
-					With this in mind, our vision system must meet the requirements of high speed and accuracy. </p><p>
-					We are using the Kinect for Windows V2 to track incoming projectiles. The depth sensor 
-					of the Kinect has a frame rate of 30Hz and improved resolution (compared to Kinect V1) of 
-					512 x 424, as well as much lower latency. We run a simple blob detector on the depth image 
-					to segmentate projectiles from the background. As introduced on the
-					<a href="http://docs.opencv.org/modules/features2d/doc/common_interfaces_of_feature_detectors.html#simpleblobdetector">
-					 OpenCV documentation</a>, a simple blob detector extracts
-					 blobs by running multiple binary thresholding on the image, finding connected components(contours)
-					 on each binary images, and grouping close centers of the contours from different binary images. 
-					As our projectile is a ball with certain size, we also enable filter
-					 by circularity and filter by area. 
-
-					</p>
-<img alt= "Depth image with ball coordinates and circle overlay" src="./pictures/screenshot-detect.png" height="300"><br /><p>
-After extracting blobs from the image, we further analyze the result to filter out noise detection based on radius/depth ratio. We record the ball radius in pixels versus depth and fit the data into a 3rd order polynomial equation (shown in figure below). In our program, we calculate the “desired” pixel radius of each blob using the depth of its center, and filter out those with a radius that has more than 10% error from the desired value. </p>
-<img alt= "" src="./pictures/r-vs-d.png" height="300"><br />
-<p>
-For better handling of multiple projectiles, we implemented several ID assignment strategies to assign each projectile an unique ID. Basically we assume a new projectile is coming if we haven’t detected anything in the past second (or less than one second). And we decide whether a projectile is the same one as detected before by looking at its space distance and the time stamps. For this purpose, detected balls are stored in a first come first out buffer container each for 0.3 seconds (approximately 10 frames). A decision flowchart is shown below. </p>
-<img alt= "" src="./pictures/flowchart.jpeg" height="400">
-
+                        <div class="hrline"> <hr /> </div>
+                                <h3>Projectile Detection</h3><br />
+                                <p>
+                                        The vision task of our project is to track multiple projectiles 
+                                        and obtain their world coordinates (x, y, z) along with a timestamp. 
+                                        The result is used for predicting the trajectories so that we can command 
+                                        the robot to a desired position and orientation in advance of the projectile. 
+                                        With this in mind, our vision system must meet the requirements of high speed and accuracy. </p>
+                                <p>
+                                        We are using the Kinect for Windows V2 to track incoming projectiles. The depth sensor 
+                                        of the Kinect has a frame rate of 30Hz and improved resolution (compared to Kinect V1) of 
+                                        512 x 424, as well as much lower latency. We run a simple blob detector on the depth image 
+                                        to segmentate projectiles from the background. As introduced on the
+                                        <a href="http://docs.opencv.org/modules/features2d/doc/common_interfaces_of_feature_detectors.html#simpleblobdetector">
+                                         OpenCV documentation</a>, a simple blob detector extracts
+                                         blobs by running multiple binary thresholding on the image, finding connected components(contours)
+                                         on each binary images, and grouping close centers of the contours from different binary images. 
+                                        As our projectile is a ball with certain size, we also enable filter
+                                         by circularity and filter by area. 
+                                </p>
+                                    <img alt= "Depth image with ball coordinates and circle overlay" src="./pictures/screenshot-detect.png" height="300"><br />
+                                <p>
+                                    After extracting blobs from the image, we further analyze the result to filter out noise detection based on radius/depth ratio. 
+                                    We record the ball radius in pixels versus depth and fit the data into a 3rd order polynomial equation (shown in figure 
+                                    below). In our program, we calculate the “desired” pixel radius of each blob using the depth of its center, and filter 
+                                    out those with a radius that has more than 10% error from the desired value. </p>
+                                    <img alt= "" src="./pictures/r-vs-d.png" height="300"><br />
+                                <p>
+                                    For better handling of multiple projectiles, we implemented several ID assignment strategies to assign each 
+                                    projectile an unique ID. Basically we assume a new projectile is coming if we haven’t detected anything in 
+                                    the past second (or less than one second). And we decide whether a projectile is the same one as detected before
+                                    by looking at its space distance and the time stamps. For this purpose, detected balls are stored in a first 
+                                    come first out buffer container each for 0.3 seconds (approximately 10 frames). A decision flowchart is shown below. </p>
+                                    <img alt= "" src="./pictures/flowchart.jpeg" height="400">
+                                <h4> Frame Matching </h4>
+                                <p> 
+                                    A big challenge was calibrating the frame between the Kinect, which was positioned in front and to the side 
+                                    of the Kuka, with the robot base frame. We created a 4 point calibration method that allowed us to generate an
+                                    accurate tranformation matrix from the kinect frame to the robot base frame. These points can't be coplanar, and we 
+                                    found it necessary to use points that were in diverse locations in the camera frame to decrease the error in the
+                                    matrix. One benefit of this approach is that we don't need to fix the Kinect's position and orientation, and 
+                                    the orientation and position are found using the Kinect's own sensor. The transformation was applied to
+                                    projectile observations to put them in the robot base frame.
 			</div>
 
 			<!--EXPERIMENTAL RESULTS-->
@@ -327,14 +345,16 @@ For better handling of multiple projectiles, we implemented several ID assignmen
 				<ul>
                     <li>We have working position/orientation control of our end effector.</li>
                     <li>We have a working state machine for the system.</li>
-                    <li>We have classes to generate projectiles based on statistically
+                    <li>We have classes to generate simulation projectiles based on statistically
                     realistic initial conditions and noisy observations.</li>
                     <li>We have a thread that runs within the SCL app, that provides information
                         about real or simulated projectiles.
-                    <li>We have a working Kalman filter that appears to work well on test data.</li>
+                    <li>We have a working Kalman filter to predict trajectories of projectiles.</li>
                     <li>We have a Kinect v2 that does multiple projectile detection.</li>
                     <li>We interface with the Kuka using the ROS interface.</li>
                     <li>We have implemented joint limits and other safety features.</li>
+                    <li>We have a modular simulation for rapid testing and debugging</li>
+                    <li>We have a custom end-effector that absorbs the momentum of the projectile so it drops rather than bounces</li>
                 </ul>
 			</div>
 
@@ -369,7 +389,7 @@ For better handling of multiple projectiles, we implemented several ID assignmen
 					<p>
 					   &nbsp;&nbsp;&nbsp; Designed by Samir Menon. <br />
 						&nbsp;&nbsp;&nbsp; &#169; Stanford University. <br />
-						&nbsp;&nbsp;&nbsp; Last updated on September 18th, 2014
+						&nbsp;&nbsp;&nbsp; Last updated on December 11th, 2014
 					</p>
 				</div>
 		</div>
