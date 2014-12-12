@@ -24,6 +24,7 @@ a2 = [2.1048    0.3836    0.9873];
 b2 = [2.1048   -0.6909    1.4884];
 c2 = [2.1048    0.3836    1.9177];
 d2 = [3.7520        0    1.36906];
+
 %% Use this section with calibration_data.mat
 
 p = zeros(size(d2));
@@ -36,6 +37,7 @@ Q = [(b2(1)-a2(1)) (b2(2)-a2(2)) (b2(3)-a2(3));...
     (d2(1)-a2(1)) (d2(2)-a2(2)) (d2(3)-a2(3))];
 
 R = inv(P)*Q;
+R = R/norm(R);
 p = a2- a1*R;
 % homogeneous transformation matrix
 T = [inv(R) p';0 0 0 1]

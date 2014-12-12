@@ -27,6 +27,7 @@
 *.out
 *.app
 iron_dome
+projectile_test
 
 #IPython
 *.ipynb_checkpoints

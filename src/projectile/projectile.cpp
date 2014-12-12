@@ -12,7 +12,7 @@
 static const double GRAVITY = -9.81;
 
 // How many observations until we deem the trajectory converged
-static const int CONVERGE_LIMIT = 4;
+static const int CONVERGE_LIMIT = 3;
 
 // When the projectile is due to pass this point, get rid of it
 static const double X_EXPIRATION = -0.3;

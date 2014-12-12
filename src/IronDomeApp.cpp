@@ -53,7 +53,7 @@ Eigen::Matrix3d START_ROTATION;
 //static const Eigen::Vector3d COLLISION_SPHERE_POS(0, 0, 0.5);
 //static const double COLLISION_SPHERE_RADIUS = 0.75;
 static const Eigen::Vector3d COLLISION_SPHERE_POS(-.4, 0, 0.1);
-static const double COLLISION_SPHERE_RADIUS = 1.40;
+static const double COLLISION_SPHERE_RADIUS = 1.50;
 #endif
 
 #ifdef KUKA
@@ -82,8 +82,8 @@ static const Eigen::Vector3d COLLISION_SPHERE_POS(0, 0, 0.338);
 static const double COLLISION_SPHERE_RADIUS = 0.8;
 #endif
 
-static const string VISION_ENDPOINT = "tcp://localhost:4242";
-//static const string VISION_ENDPOINT = "tcp://192.168.150.2:4242";
+//static const string VISION_ENDPOINT = "tcp://localhost:4242";
+static const string VISION_ENDPOINT = "tcp://192.168.150.2:4242";
 static const string ROBOT_PORT = "tcp://*:3883";
 static const string ROBOT_ENDPOINT = "tcp://localhost:4244";
 
@@ -96,7 +96,7 @@ static const double KP_Q_BASE = 30;
 static const double KV_Q_BASE = 8;
 
 // How far towards the desired position to command
-static const double DX_MAX_MAGNITUDE = 0.10;
+static const double DX_MAX_MAGNITUDE = 0.13;
 static const double DPHI_MAX_MAGNITUDE = 0.25;
 
 // Constraints on which targets to intercept
@@ -737,7 +737,7 @@ void IronDomeApp::graphicsLoop() {
   collision_sphere.setUseTransparency(true);
   collision_sphere.setTransparencyLevel(0.1);
   chai3d::cCreateSphere(&collision_sphere, COLLISION_SPHERE_RADIUS);
-  chai_world->addChild(&collision_sphere);
+  //chai_world->addChild(&collision_sphere);
   collision_sphere.setLocalPos(
       COLLISION_SPHERE_POS(0),
       COLLISION_SPHERE_POS(1),
