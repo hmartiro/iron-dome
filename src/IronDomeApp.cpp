@@ -82,8 +82,8 @@ static const Eigen::Vector3d COLLISION_SPHERE_POS(0, 0, 0.338);
 static const double COLLISION_SPHERE_RADIUS = 0.8;
 #endif
 
-//static const string VISION_ENDPOINT = "tcp://localhost:4242";
-static const string VISION_ENDPOINT = "tcp://192.168.150.2:4242";
+static const string VISION_ENDPOINT = "tcp://localhost:4242";
+//static const string VISION_ENDPOINT = "tcp://192.168.150.2:4242";
 static const string ROBOT_PORT = "tcp://*:3883";
 static const string ROBOT_ENDPOINT = "tcp://localhost:4244";
 

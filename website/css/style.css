@@ -1,0 +1,13 @@
+.video {
+  margin: auto;
+  text-align: center;
+}
+
+.carousel {
+  height: 315px;
+  width: 560px;
+}
+
+img {
+  margin-bottom: 10px;
+}
