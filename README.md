@@ -20,3 +20,8 @@ Videos:
  * [Intermediate Testing](https://www.youtube.com/watch?v=A24_O-sdZww)
 
 **Full documentation can be found in `website/` or online [here](http://haykmartirosyan.com/project/irondome/).**
+
+NOTE: The specifications of Kuka robots are not public, so we are not
+able to include them in this repository. We have included the specification
+for a Puma robot, so change to this robot in `src/IronDomeApp.cpp` if you'd
+like to compile the project.
