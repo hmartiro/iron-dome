@@ -1,3 +1,6 @@
 [submodule "external/kalman-cpp"]
 	path = external/kalman-cpp
 	url = https://github.com/hmartiro/kalman-cpp
+[submodule "external/IronDomeVision"]
+	path = external/IronDomeVision
+	url = https://github.com/porridgexixi/IronDomeVision
