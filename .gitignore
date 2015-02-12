@@ -41,3 +41,6 @@ build_rel/
 
 scl-repo
 
+specs/Kuka/
+specs/iiwa/
+zmq-test/
