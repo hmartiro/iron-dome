@@ -10,6 +10,7 @@
 #include <math.h>
 
 #include <sutil/CSystemClock.hpp>
+#include <scl/serialization/SerializationJSON.hpp>
 
 #include "ostreamlock.hpp"
 #include "IronDomeApp.hpp"
@@ -86,6 +87,9 @@ static const string VISION_ENDPOINT = "tcp://localhost:4242";
 //static const string VISION_ENDPOINT = "tcp://192.168.150.2:4242";
 static const string ROBOT_PORT = "tcp://*:3883";
 static const string ROBOT_ENDPOINT = "tcp://localhost:4244";
+
+static const string REDOX_HOST = "localhost";
+static const int REDOX_PORT = 6379;
 
 static const double KP_P = 15000;
 static const double KV_P = 1000;
@@ -177,6 +181,37 @@ IronDomeApp::IronDomeApp() : t(0), t_sim(0), iter(0), finished(false),
   sutil::CSystemClock::start();
 
   state = STATE_IDLE;
+
+  if(!rdx.connect(REDOX_HOST, REDOX_PORT)
+     || !rdx_vision.connect(REDOX_HOST, REDOX_PORT)
+     || !rdx_robot.connect(REDOX_HOST, REDOX_PORT)) {
+    cerr << "Failed to connect to Redis at " << REDOX_HOST << ":" << REDOX_PORT << endl;
+    return;
+  }
+
+  // Declare this app on redis
+  const std::string app_name = "iron_dome";
+  cout << "Registering " << app_name << " in list of active applications." << endl;
+  rdx.commandSync({"SADD", "scl:apps", app_name});
+
+  // Watchdog timer to keep app active
+  rdx.commandLoop<std::string>({"SETEX", app_name + ":active", "2", "1"}, nullptr, 1);
+
+  // Useful for JSON serialization...
+  Json::FastWriter writer;
+  Json::Value json_val;
+
+  // Set the parsed data for the Puma
+  flag = serializeToJSON(rds, json_val);
+  if (!flag) {  printf("\n JSON serialization error.. %s",json_val.toStyledString().c_str());  }
+  rdx.commandSync({"HSET", app_name, "spec", writer.write(json_val)});
+  json_val.clear();
+
+  // Set the graphics data for the Puma
+  flag = serializeToJSON(rgr, json_val);
+  if (!flag) {  printf("\n JSON serialization error.. %s",json_val.toStyledString().c_str());  }
+  rdx.commandSync({"HSET", app_name, "graphics", writer.write(json_val)});
+  json_val.clear();
 
   cout << oslock << "Initialized IronDomeApp for " << robot_name
        << " with " << dof << " degrees of freedom." << endl << osunlock;
@@ -607,7 +642,7 @@ void IronDomeApp::integrate() {
   iter++;
 }
 
-void IronDomeApp::sendToRobot(zmqpp::socket& robot_pub) {
+void IronDomeApp::sendToRobot() {
 
   data_lock.lock();
 
@@ -624,7 +659,7 @@ void IronDomeApp::sendToRobot(zmqpp::socket& robot_pub) {
   // Scale from m to mm
   x_inc *= 1000;
 
-  zmqpp::message msg;
+  stringstream msg;
   msg << to_string(q[0]) + " " +
              to_string(q[1]) + " " +
              to_string(q[2]) + " " +
@@ -647,16 +682,10 @@ void IronDomeApp::sendToRobot(zmqpp::socket& robot_pub) {
 
   data_lock.unlock();
 
-  robot_pub.send(msg);
+  rdx.command({"LPUSH", "iron_dome:robot_commands", msg.str()});
 }
 
 void IronDomeApp::controlsLoop() {
-
-  // Initialize a 0MQ publisher socket
-  zmqpp::context context;
-  zmqpp::socket robot_pub(context, zmqpp::socket_type::publish);
-
-  robot_pub.bind(ROBOT_PORT);
 
   while(!finished) {
 
@@ -667,7 +696,7 @@ void IronDomeApp::controlsLoop() {
 
     updateState();
 
-    if(!simulation_enabled) sendToRobot(robot_pub);
+    if(!simulation_enabled) sendToRobot();
 
     stateMachine();
 
@@ -755,9 +784,19 @@ void IronDomeApp::graphicsLoop() {
   chai3d::cMaterial projectile_mat_c;
   projectile_mat_c.setGray();
 
+  Json::FastWriter writer;
+  Json::Value json_val;
+
   long nanosec = static_cast<long>(GRAPHICS_DT * 1e9);
   const timespec ts = {0, nanosec};
   while(!finished) {
+
+    // Serialize the RIO object and publish to Redis
+    if (!serializeToJSON(rio, json_val)) {
+      cout << "JSON serialization error: " << json_val.toStyledString() << endl;
+      continue;
+    }
+    rdx.command({"HSET", "iron_dome", "io", writer.write(json_val)});
 
     // Draw control points
     x_c_sphere.setLocalPos(x_c[0], x_c[1], x_c[2]);
@@ -891,39 +930,36 @@ void IronDomeApp::printState() {
 
 void IronDomeApp::visionLoop() {
 
-  // Initialize a 0MQ subscribe socket
-  zmqpp::context context;
-  zmqpp::socket socket(context, zmqpp::socket_type::subscribe);
-  socket.subscribe("");
+  rdx_vision.command<vector<string>>({"BLPOP", "iron_dome:projectiles", "0"},
+      [this](redox::Command<vector<string>>& c) {
 
-  // Connect to the endpoint providing vision data
-  socket.connect(VISION_ENDPOINT);
+        if(!c.ok()) {
+          cerr << "Error reply for getting projectile observations: " << c.status() << endl;
 
-  while(!finished) {
+        } else {
 
-    // Receive a message
-    zmqpp::message message;
-    socket.receive(message);
+          int id; // Unique ID number of projectile
+          double time, x, y, z; // Timestamp and measured position
 
-    int id; // Unique ID number of projectile
-    double time, x, y, z; // Timestamp and measured position
+          const string& msg = c.reply()[1];
+          stringstream msg_stream(msg);
+          cout << "Message: " << oslock << msg << endl << osunlock;
 
-    string msg;
-    message >> msg;
-    stringstream msg_stream(msg);
-    cout << "Message: " << oslock << msg << endl << osunlock;
+          // Read the message into the variables
+          msg_stream >> id >> time >> x >> y >> z;
 
-    // Read the message into the variables
-    msg_stream >> id >> time >> x >> y >> z;
+          if(msg_stream.fail()) {
+            cerr << oslock << "ERROR: Invalid projectile measurement received: "
+                << msg << endl << osunlock;
+          } else {
+            projectile_manager.addObservation(id, time, x, y, z);
+          }
+        }
 
-    if(msg_stream.fail()) {
-      cerr << oslock << "ERROR: Invalid projectile measurement received: "
-           << msg << endl << osunlock;
-      continue;
-    }
-
-    projectile_manager.addObservation(id, time, x, y, z);
-  }
+        // Do another BLPOP until the next observation comes
+        this->visionLoop();
+      }
+  );
 }
 
 void IronDomeApp::shellLoop() {
@@ -1076,28 +1112,27 @@ void IronDomeApp::shellLoop() {
 
 void IronDomeApp::robotLoop(){
 
-  zmqpp::context context;
-  zmqpp::socket socket_sub (context, zmqpp::socket_type::subscribe);
+  rdx_robot.command<vector<string>>({"BLPOP", "iron_dome:robot_data", "0"},
+      [this](redox::Command<vector<string>>& c) {
 
-  socket_sub.connect(ROBOT_ENDPOINT);
-  socket_sub.subscribe("");
+        if(!c.ok()) {
+          cerr << "Error with robot data BLPOP: " << c.status() << endl;
+        } else {
+          const string& msg = c.reply()[1];
+          stringstream msg_stream(msg);
+          // Read the message into the variables
+          //cout << oslock << msg << endl << osunlock;
+          data_lock.lock();
+          msg_stream >> q_sensor[0] >> q_sensor[1] >> q_sensor[2] >> q_sensor[3]
+              >> q_sensor[4] >> q_sensor[5] >> q_sensor[6];
+          q_sensor[3] = -q_sensor[3];
+          data_lock.unlock();
+        }
 
-  while(!finished){
-
-    zmqpp::message message_sub;
-    socket_sub.receive(message_sub);
-    string msg;
-    message_sub >> msg;
-    stringstream msg_stream(msg);
-
-    // Read the message into the variables
-    //cout << oslock << msg << endl << osunlock;
-    data_lock.lock();
-    msg_stream >> q_sensor[0] >> q_sensor[1] >> q_sensor[2] >> q_sensor[3]
-               >> q_sensor[4] >> q_sensor[5] >> q_sensor[6];
-    q_sensor[3] = -q_sensor[3];
-    data_lock.unlock();
-  }
+        // Look for more data
+        this->robotLoop();
+      }
+  );
 }
 
 bool IronDomeApp::testJointLimit(int joint_num){

@@ -42,10 +42,13 @@ SET(TIXML_INC_DIR ${SCL_BASE_DIR}3rdparty/tinyxml)
 ### (f) kalman-cpp (state estimator)
 SET(KALMAN_INC_DIR ./external/kalman-cpp)
 
+### (g) redox (communication)
+SET(REDOX_INC_DIR ${SCL_BASE_DIR}3rdparty/redox/include/)
+
 ################Initialize the executable#################
 #Set the include directories
 INCLUDE_DIRECTORIES(${SCL_INC_DIR} ${SCL_INC_DIR_BASE} ${TAO_INC_DIR} ${EIGEN_INC_DIR}
-                    ${CHAI_INC_DIR} ${SUTIL_INC_DIR} ${TIXML_INC_DIR} ${KALMAN_INC_DIR})
+                    ${CHAI_INC_DIR} ${SUTIL_INC_DIR} ${TIXML_INC_DIR} ${KALMAN_INC_DIR} ${REDOX_INC_DIR})
 
 #Set the compilation flags
 SET(CMAKE_CXX_FLAGS "-Wall -fPIC -fopenmp  -Wno-unused-local-typedefs")
@@ -101,7 +104,13 @@ target_link_libraries(iron_dome ${CHAI_LIBRARY})
 
 
 ###############CODE TO FIND AND LINK REMANING LIBS ######################
-target_link_libraries(iron_dome gomp GL GLU GLEW glut ncurses rt dl zmq zmqpp)
+
+find_library(REDOX_LIB NAMES redox
+            PATHS ${REDOX_INC_DIR}../build/)
+
+target_link_libraries(iron_dome ${REDOX_LIB})
+
+target_link_libraries(iron_dome gomp GL GLU GLEW glut ncurses rt dl ev hiredis jsoncpp)
 
 ###############PROJECTILE GENERATION PROGRAM ############################
 
@@ -110,4 +119,4 @@ SET(PROJECTILE_GEN_SRC ${IRON_DOME_SRC_DIR}/projectile/projectile_test.cpp
 
 add_executable(projectile_test ${PROJECTILE_GEN_SRC})
 
-target_link_libraries(projectile_test zmq zmqpp)
+target_link_libraries(projectile_test ${REDOX_LIB} ev hiredis)

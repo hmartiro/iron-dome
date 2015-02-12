@@ -9,7 +9,7 @@
 
 #include <mutex>
 #include <Eigen/Dense>
-#include <zmqpp/zmqpp.hpp>
+#include "redox.hpp"
 
 #include <scl/DataTypes.hpp>
 #include <scl/data_structs/SGcModel.hpp>
@@ -131,7 +131,7 @@ private:
   /**
   * Command task-space position and orientation to the physical robot.
   */
-  void sendToRobot(zmqpp::socket& robot_pub);
+  void sendToRobot();
 
   void commandTorque(Eigen::VectorXd torque);
 
@@ -144,6 +144,10 @@ private:
   * limits.
   */
   void applyJointLimitPotential();
+
+  redox::Redox rdx;                // Communication via Redis
+  redox::Redox rdx_robot;          // Communication via Redis
+  redox::Redox rdx_vision;         // Communication via Redis
 
   scl::SRobotParsed rds;     // Robot data structure
   scl::SGraphicsParsed rgr;  // Robot graphics data structure

@@ -4,14 +4,15 @@
 
 #include <iostream>
 #include <iomanip>
-#include <zmqpp/zmqpp.hpp>
 #include <sutil/CSystemClock.hpp>
+#include "redox.hpp"
 
 #include "ProjectileGenerator.hpp"
 
 using namespace std;
 
-const string ADDRESS = "tcp://*:4242";
+static const string REDIS_HOST = "localhost";
+static const int REDIS_PORT = 6379;
 
 int main(int argc, char* argv[]) {
 
@@ -30,13 +31,17 @@ int main(int argc, char* argv[]) {
   // Set print format
   cout << fixed << setprecision(3);
 
-  // Initialize a 0MQ publish socket
-  zmqpp::context context;
-  zmqpp::socket socket (context, zmqpp::socket_type::publish);
+  // Initialize Redis client
+  redox::Redox rdx;
 
   // Open the connection
-  cout << "Binding to " << ADDRESS << "..." << endl;
-  socket.bind(ADDRESS);
+  cout << "Connecting to " << REDIS_HOST << ":" << REDIS_PORT << "..." << endl;
+  if(!rdx.connect(REDIS_HOST, REDIS_PORT)) {
+    cerr << "Could not connect to Redis server!" << endl;
+    return -1;
+  }
+
+  rdx.del("iron_dome:projectiles");
 
   // Loop through, generating projectiles
   double t = sutil::CSystemClock::getSysTime();
@@ -49,13 +54,13 @@ int main(int argc, char* argv[]) {
     for(const pair<int, SimProjectile>& p : pg.getProjectiles()) {
 
       const SimProjectile& proj = p.second;
-      zmqpp::message message;
+      stringstream message;
       message << to_string(proj.id) + " " + to_string(t-t0) + " "
                + to_string(proj.p(0)) + " "
                + to_string(proj.p(1)) + " "
                + to_string(proj.p(2));
 
-      socket.send(message);
+      rdx.command({"LPUSH", "iron_dome:projectiles", message.str()});
 
       cout << "Projectile " << proj.id << ", t = " << t-t0 << ", position = ("
            << proj.p(0) << ", "
